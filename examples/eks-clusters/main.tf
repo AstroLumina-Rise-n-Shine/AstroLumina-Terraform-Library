@@ -69,11 +69,20 @@ locals {
   subnets = [aws_subnet.a.id, aws_subnet.b.id]
 }
 
+# One shared KMS key for EKS secrets encryption across the three learning
+# clusters (the eks_cluster module requires a key ARN -- see its
+# cluster_encryption_key_arn variable). Production would use one key
+# per cluster for blast-radius isolation.
+resource "aws_kms_key" "eks_secrets" {
+  description = "Shared envelope-encryption key for the learning EKS clusters"
+}
+
 module "eks_development" {
   source = "../../modules/eks_cluster"
 
-  name       = "astrolumina-development"
-  subnet_ids = local.subnets
+  name                       = "astrolumina-development"
+  subnet_ids                 = local.subnets
+  cluster_encryption_key_arn = aws_kms_key.eks_secrets.arn
 
   instance_types = ["t3.small"]
   desired_size   = 1
@@ -86,8 +95,9 @@ module "eks_development" {
 module "eks_staging" {
   source = "../../modules/eks_cluster"
 
-  name       = "astrolumina-staging"
-  subnet_ids = local.subnets
+  name                       = "astrolumina-staging"
+  subnet_ids                 = local.subnets
+  cluster_encryption_key_arn = aws_kms_key.eks_secrets.arn
 
   instance_types = ["t3.small"]
   desired_size   = 1
@@ -100,8 +110,9 @@ module "eks_staging" {
 module "eks_production" {
   source = "../../modules/eks_cluster"
 
-  name       = "astrolumina-production"
-  subnet_ids = local.subnets
+  name                       = "astrolumina-production"
+  subnet_ids                 = local.subnets
+  cluster_encryption_key_arn = aws_kms_key.eks_secrets.arn
 
   instance_types = ["t3.small"]
   desired_size   = 2
