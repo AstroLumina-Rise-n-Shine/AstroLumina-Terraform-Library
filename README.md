@@ -17,6 +17,7 @@ docs/
   02-floci-aws-cli.md       # Floci + AWS CLI install, pointing the CLI at Floci
   03-terraform-floci.md     # AWS provider wiring for the emulator + EKS roadmap
   04-eks-clusters.md       # Per-env EKS clusters, managed control plane vs node groups
+  05-floci-consoles.md      # Built-in Floci UI vs the AWS-looking Floci Dash console
 examples/
   floci-s3-bucket/  # Minimal S3 bucket on Floci (verified end-to-end)
   eks-clusters/     # One minimal EKS cluster per env on Floci (verified end-to-end)
