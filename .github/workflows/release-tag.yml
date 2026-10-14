@@ -1,0 +1,131 @@
+---
+name: Release tag
+
+# Cuts a git version tag whenever Terraform code changes land on main,
+# mirroring the application pipelines (where a code change cuts a new image).
+# Here the deliverable is the tag itself: consumers pin module sources to it
+# (e.g. source = "git::https://.../AstroLumina-Terraform-Library.git//modules/kvm_vm?ref=1.0.0").
+# Tags are bare semver WITHOUT a `v` prefix: the first release is exactly
+# `1.0.0`, later code changes auto-increment the patch (1.0.1, 1.0.2, ...).
+# Docs/pipeline-only merges reuse the latest tag and cut nothing.
+
+# All third-party actions are pinned to immutable commit SHAs
+# (instead of floating tags) to protect against supply-chain attacks.
+# The original version tag is kept as a trailing comment for readability.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Tag pushes must never be cancelled mid-flight: a cancelled run between
+# `git tag` and `git push` would leave a local-only tag that confuses
+# the next run's version computation.
+concurrency:
+  group: library-release-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          # The checkout action passes --no-tags by default. Without the tag
+          # history the version computation below can never see a previous
+          # release, so every run would try to cut 1.0.0 again and fail.
+          fetch-tags: true
+
+      - name: Check for Terraform code changes
+        # A new tag must only move when the shipped Terraform code changes.
+        # Everything matching the ignore patterns below -- docs, pipelines,
+        # repo meta -- never affects a module consumer, so a merge touching
+        # only those reuses the latest tag instead of cutting a new version.
+        # Anything NOT listed (modules/**, examples/**/*.tf) counts as code.
+        id: changes
+        run: |
+          base="${{ github.event.before }}"
+          head="${{ github.sha }}"
+          # On a new branch the `before` SHA is all zeros, and on manual
+          # dispatch it is empty. Neither diffs, so fall back to the
+          # merge-base with main (fail closed if even that is unavailable).
+          case "$base" in
+            ""|"0000000000000000000000000000000000000000")
+              base=$(git merge-base origin/main "$head") || {
+                echo "ERROR: cannot determine merge-base with origin/main; refusing to guess, failing closed."
+                exit 1
+              }
+              ;;
+          esac
+          # The SHAs come from the event payload and may postdate the
+          # checkout: a force-push/amend replaces the head commit, leaving the
+          # old object unreferenced so the checkout fetch never brings it.
+          # Fetch both SHAs explicitly (GitHub serves arbitrary hashes); warn
+          # and continue on fetch failure, the diff below is the real gate.
+          git fetch --no-tags --quiet origin "$base" "$head" || echo "WARNING: explicit fetch of $base / $head failed, diffing with local objects"
+          files=$(git diff --name-only "$base" "$head") || {
+            echo "ERROR: cannot diff $base...$head even after explicit fetch; refusing to guess, failing closed."
+            exit 1
+          }
+          code=false
+          while IFS= read -r f; do
+            # An empty file list still feeds this loop one empty line, and the
+            # empty string matches the catch-all below. Without this guard a
+            # failed-or-empty diff would silently read as code=true.
+            [ -z "$f" ] && continue
+            case "$f" in
+              *.md|.github/*|.gitignore) ;;
+              *) code=true; break ;;
+            esac
+          done <<< "$files"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Terraform code changed: $code"
+
+      - name: Compute version
+        id: version
+        run: |
+          # Re-run guard: an idempotent re-run of an already-tagged commit
+          # must reuse that tag instead of cutting a duplicate version.
+          existing=$(git tag --points-at HEAD | head -n 1)
+          if [ -n "$existing" ]; then
+            echo "version=$existing" >> "$GITHUB_OUTPUT"
+            echo "new_tag=false" >> "$GITHUB_OUTPUT"
+            echo "HEAD already tagged $existing -- reusing, no new version."
+          else
+            latest=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "")
+            if [ -z "$latest" ]; then
+              new_version="1.0.0"
+              echo "No previous tag -- cutting first release 1.0.0."
+            elif [ "${{ steps.changes.outputs.code }}" = "true" ]; then
+              current_patch=$(echo "$latest" | cut -d. -f3)
+              new_patch=${current_patch:-0}
+              new_patch=$((new_patch + 1))
+              major=$(echo "$latest" | cut -d. -f1)
+              minor=$(echo "$latest" | cut -d. -f2)
+              new_version="${major}.${minor}.${new_patch}"
+              echo "New version: $new_version"
+            else
+              new_version="$latest"
+              echo "Docs/infra-only change -- reusing latest tag $latest, no new version."
+            fi
+            echo "version=$new_version" >> "$GITHUB_OUTPUT"
+            if [ "$new_version" = "$latest" ]; then
+              echo "new_tag=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "new_tag=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        if: steps.changes.outputs.code == 'true' && steps.version.outputs.new_tag == 'true'
+        run: |
+          git tag ${{ steps.version.outputs.version }}
+          git push origin ${{ steps.version.outputs.version }}

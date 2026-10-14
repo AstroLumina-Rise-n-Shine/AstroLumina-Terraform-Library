@@ -14,6 +14,11 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
+variable "cluster_encryption_key_arn" {
+  description = "KMS key ARN for EKS secrets envelope encryption (no default on purpose: every caller must consciously pick a key)"
+  type        = string
+}
+
 variable "instance_types" {
   description = "EC2 instance types for the managed worker nodes"
   type        = list(string)

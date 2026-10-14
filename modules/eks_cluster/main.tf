@@ -60,8 +60,32 @@ resource "aws_eks_cluster" "this" {
   version  = var.kubernetes_version
   role_arn = aws_iam_role.cluster.arn
 
+  # Ship every control-plane log type to CloudWatch Logs. The API default
+  # logs nothing, which Trivy flags five times over (AWS-0038). On real AWS
+  # this incurs CloudWatch ingestion charges; on Floci it is free.
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
   vpc_config {
     subnet_ids = var.subnet_ids
+
+    # Private-only API endpoint: the control plane is NOT reachable from the
+    # public internet. Worker nodes reach it inside the VPC. (Trivy AWS-0040
+    # fires on the default public endpoint, AWS-0041 on the default
+    # 0.0.0.0/0 CIDRs -- both gone with public access disabled.)
+    endpoint_private_access = true
+    endpoint_public_access  = false
+  }
+
+  # Envelope encryption for Kubernetes secrets with a caller-provided KMS
+  # key. Without this block etcd stores secrets unencrypted at rest.
+  # (Trivy AWS-0039.) A shared key per deployment is fine for learning;
+  # production would use one key per cluster.
+  encryption_config {
+    resources = ["secrets"]
+
+    provider {
+      key_arn = var.cluster_encryption_key_arn
+    }
   }
 
   tags = var.tags
