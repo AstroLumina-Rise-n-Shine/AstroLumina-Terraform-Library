@@ -11,12 +11,16 @@ which consumes these modules via `source = "git::...//modules/<name>"`.
 ```
 modules/
   kvm_vm/          # Single KVM virtual machine (libvirt + cloud-init)
+  eks_cluster/     # EKS cluster + managed node group (control plane managed by AWS)
 docs/
   01-terraform-install.md   # Terraform via the official HashiCorp APT repo
   02-floci-aws-cli.md       # Floci + AWS CLI install, pointing the CLI at Floci
   03-terraform-floci.md     # AWS provider wiring for the emulator + EKS roadmap
+  04-eks-clusters.md       # Per-env EKS clusters, managed control plane vs node groups
+  05-floci-consoles.md      # Built-in Floci UI vs the AWS-looking Floci Dash console
 examples/
   floci-s3-bucket/  # Minimal S3 bucket on Floci (verified end-to-end)
+  eks-clusters/     # One minimal EKS cluster per env on Floci (verified end-to-end)
 ```
 
 ## Module contract
