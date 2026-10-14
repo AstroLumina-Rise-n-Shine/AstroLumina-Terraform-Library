@@ -1,40 +1,40 @@
 variable "vm_name" {
-  description = "Numele VM-ului"
+  description = "VM name"
   type        = string
 }
 
 variable "vcpu" {
-  description = "Numărul de procesoare virtuale"
+  description = "Number of virtual CPUs"
   type        = number
   default     = 2
 }
 
 variable "memory_mb" {
-  description = "Memorie RAM în MB"
+  description = "RAM in MB"
   type        = number
   default     = 2048
 }
 
 variable "disk_gb" {
-  description = "Dimensiunea discului în GB"
+  description = "Disk size in GB"
   type        = number
   default     = 20
 }
 
 variable "network_name" {
-  description = "Numele rețelei libvirt"
+  description = "libvirt network name"
   type        = string
   default     = "default"
 }
 
 variable "disk_pool" {
-  description = "Pool-ul de stocare"
+  description = "Storage pool"
   type        = string
   default     = "default"
 }
 
 variable "tags" {
-  description = "Tag-uri pentru VM"
+  description = "Tags for the VM"
   type        = map(string)
   default     = {}
 }
@@ -45,35 +45,35 @@ variable "environment" {
 }
 
 variable "base_image_path" {
-  description = "Calea către imaginea de bază QCOW2"
+  description = "Path to the base QCOW2 image"
   type        = string
 }
 
 variable "ssh_username" {
-  description = "Username pentru SSH și sudo"
+  description = "Username for SSH and sudo"
   type        = string
   default     = "ubuntu"
 }
 
 variable "ssh_pub_key" {
-  description = "Cheia SSH publică pentru autentificare"
+  description = "SSH public key for authentication"
   type        = string
 }
 
 variable "ssh_password" {
-  description = "Parola pentru user (hashed SHA-512)"
+  description = "User password (hashed SHA-512)"
   type        = string
   default     = ""
 }
 
 variable "running" {
-  description = "Dacă VM-ul pornește automat după creare"
+  description = "Whether the VM starts automatically after creation"
   type        = bool
   default     = false
 }
 
 variable "mac_address" {
-  description = "MAC address pentru IP fix (trebuie să se potrivească cu rezervarea DHCP)"
+  description = "MAC address for the static IP (must match the DHCP reservation)"
   type        = string
   default     = ""
 }

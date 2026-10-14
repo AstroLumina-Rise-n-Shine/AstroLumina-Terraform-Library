@@ -274,27 +274,27 @@ data "libvirt_domain_interface_addresses" "this" {
 # Outputs
 # ============================================================
 output "vm_name" {
-  description = "Numele VM-ului"
+  description = "VM name"
   value       = var.vm_name
 }
 
 output "ip_address" {
-  description = "Adresa IP a VM-ului"
-  value       = var.running ? try(data.libvirt_domain_interface_addresses.this[0].interfaces[0].addrs[0].addr, "N/A") : "VM oprit"
+  description = "IP address of the VM"
+  value       = var.running ? try(data.libvirt_domain_interface_addresses.this[0].interfaces[0].addrs[0].addr, "N/A") : "VM stopped"
 }
 
 output "vcpu" {
-  description = "Numărul de CPU-uri"
+  description = "Number of CPUs"
   value       = var.vcpu
 }
 
 output "memory_mb" {
-  description = "Memoria în MB"
+  description = "Memory in MB"
   value       = var.memory_mb
 }
 
 output "disk_gb" {
-  description = "Dimensiunea discului în GB"
+  description = "Disk size in GB"
   value       = var.disk_gb
 }
 
