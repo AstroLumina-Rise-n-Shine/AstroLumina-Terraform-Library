@@ -1,3 +1,19 @@
+# Standard tags for every object this module creates. Caller tags win on
+# key conflicts, except Environment, which always comes from var.environment
+# so clusters from different envs can never look identical.
+locals {
+  common_tags = merge(
+    {
+      Project   = "AstroLumina"
+      ManagedBy = "terraform"
+    },
+    var.tags,
+    {
+      Environment = var.environment
+    }
+  )
+}
+
 # IAM role assumed by the EKS control plane (managed by AWS, you never see
 # the masters). Needs exactly one managed policy: AmazonEKSClusterPolicy.
 resource "aws_iam_role" "cluster" {
@@ -12,7 +28,7 @@ resource "aws_iam_role" "cluster" {
     }]
   })
 
-  tags = var.tags
+  tags = local.common_tags
 }
 
 resource "aws_iam_role_policy_attachment" "cluster" {
@@ -34,7 +50,7 @@ resource "aws_iam_role" "node" {
     }]
   })
 
-  tags = var.tags
+  tags = local.common_tags
 }
 
 resource "aws_iam_role_policy_attachment" "node_worker" {
@@ -88,7 +104,7 @@ resource "aws_eks_cluster" "this" {
     }
   }
 
-  tags = var.tags
+  tags = local.common_tags
 }
 
 # Workers as a Managed Node Group: EKS creates and maintains the EC2
@@ -109,5 +125,5 @@ resource "aws_eks_node_group" "default" {
     max_size     = var.max_size
   }
 
-  tags = var.tags
+  tags = local.common_tags
 }

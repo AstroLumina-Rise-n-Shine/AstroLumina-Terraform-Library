@@ -9,6 +9,15 @@ terraform {
   }
 }
 
+# libvirt domains have no native tags, so env/role/cluster travel as data:
+# merged here, written into the guest at /etc/astrolumina-environment, and
+# exposed through the labels output.
+locals {
+  common_labels = merge(var.tags, {
+    Environment = var.environment
+  })
+}
+
 # ============================================================
 # Cloud-Init Disk (generates config ISO)
 # ============================================================
@@ -50,11 +59,19 @@ packages:
   - dnsmasq
 %{endif}
 
+# Environment labels: always written, so every VM carries its env/role/
+# cluster at a known path. The conditional entries below append to the SAME
+# list (a second write_files key would silently win and drop one of them --
+# cloud-config allows it only once).
+write_files:
+  - path: /etc/astrolumina-environment
+    permissions: '0644'
+    content: |
+      ${join("\n      ", [for k, v in local.common_labels : "${k}=${v}"])}
 %{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
 # Split-DNS helper: serves <zone> -> this node's own Tailscale IP.
 # The IP is resolved at first boot (after 'tailscale up'), so VM rebuilds
 # that get a new tailnet IP keep working with no manual DNS edits.
-write_files:
   - path: /etc/dnsmasq.d/tailnet-base.conf
     permissions: '0644'
     content: |
@@ -279,4 +296,14 @@ output "memory_mb" {
 output "disk_gb" {
   description = "Dimensiunea discului în GB"
   value       = var.disk_gb
+}
+
+output "environment" {
+  description = "Deployment environment this VM belongs to (also written into the guest at /etc/astrolumina-environment)"
+  value       = var.environment
+}
+
+output "labels" {
+  description = "Effective env/role/cluster labels (caller tags merged with Environment)"
+  value       = local.common_labels
 }

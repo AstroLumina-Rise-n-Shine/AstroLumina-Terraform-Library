@@ -48,3 +48,8 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "environment" {
+  description = "Deployment environment this cluster belongs to (development, staging or production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
+  type        = string
+}

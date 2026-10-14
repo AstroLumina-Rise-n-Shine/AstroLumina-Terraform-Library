@@ -17,8 +17,16 @@ module "vm" {
   base_image_path = "/var/lib/libvirt/images/ubuntu-24.04.qcow2"
   ssh_pub_key     = "ssh-ed25519 AAAA..."
   mac_address     = "52:54:00:a1:b2:c3" # must match a DHCP reservation
+  environment     = "development"
 }
 ```
+
+## Notes
+
+- `environment` (required) plus `tags` are merged into one label set that
+  is written into the guest at `/etc/astrolumina-environment` and exposed
+  through the `labels` output. libvirt domains have no native tags, so this
+  file is how you tell environments apart from inside the VM.
 
 ## Notes
 
@@ -41,7 +49,8 @@ module "vm" {
 | `disk_gb` | number | `20` | OS disk size in GB |
 | `network_name` | string | `"default"` | Libvirt network |
 | `disk_pool` | string | `"default"` | Storage pool |
-| `tags` | map(string) | `{}` | Tags (informational) |
+| `tags` | map(string) | `{}` | Extra labels merged with `Environment` |
+| `environment` | string | -- | Env name, written into the guest (required) |
 | `base_image_path` | string | -- | Base QCOW2 on the host (required) |
 | `ssh_username` | string | `"ubuntu"` | SSH/sudo user |
 | `ssh_pub_key` | string | -- | Public key (required) |
@@ -60,3 +69,5 @@ module "vm" {
 |---|---|
 | `vm_name`, `vcpu`, `memory_mb`, `disk_gb` | Echo of the sizing inputs |
 | `ip_address` | First lease IP (`"N/A"` when stopped) |
+| `environment` | Echo of the `environment` input |
+| `labels` | Effective label set from the guest file |

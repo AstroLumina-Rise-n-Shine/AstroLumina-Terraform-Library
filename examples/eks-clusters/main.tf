@@ -145,7 +145,7 @@ module "eks_development" {
   min_size       = 1
   max_size       = 1
 
-  tags = { env = "development" }
+  environment = "development"
 }
 
 module "eks_staging" {
@@ -160,7 +160,7 @@ module "eks_staging" {
   min_size       = 1
   max_size       = 1
 
-  tags = { env = "staging" }
+  environment = "staging"
 }
 
 module "eks_production" {
@@ -175,7 +175,7 @@ module "eks_production" {
   min_size       = 2
   max_size       = 2
 
-  tags = { env = "production" }
+  environment = "production"
 }
 
 output "cluster_endpoints" {
