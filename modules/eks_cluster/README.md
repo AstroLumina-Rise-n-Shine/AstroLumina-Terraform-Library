@@ -21,9 +21,15 @@ module "eks_dev" {
   min_size       = 1
   max_size       = 1
 
-  tags = { env = "development" }
+  environment = "development"
 }
 ```
+
+## Notes
+
+- `environment` (required) is always stamped as the `Environment` tag on
+  every object, alongside the standard `Project`/`ManagedBy` tags -- this
+  is what tells per-env clusters apart. Extra `tags` merge underneath.
 
 ## Notes
 
