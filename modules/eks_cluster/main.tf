@@ -60,6 +60,11 @@ resource "aws_eks_cluster" "this" {
   version  = var.kubernetes_version
   role_arn = aws_iam_role.cluster.arn
 
+  # Ship every control-plane log type to CloudWatch Logs. The API default
+  # logs nothing, which Trivy flags five times over (AWS-0038). On real AWS
+  # this incurs CloudWatch ingestion charges; on Floci it is free.
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
   vpc_config {
     subnet_ids = var.subnet_ids
 
