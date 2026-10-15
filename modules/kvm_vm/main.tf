@@ -97,6 +97,30 @@ write_files:
       systemctl enable --now dnsmasq
       systemctl restart dnsmasq
 %{endif}
+%{if var.tailscale_auth_key != ""}
+# Tailnet pod-routing fix: Calico marks pod traffic with fwmark 0x80000,
+# which collides with Tailscale's policy rules (they send fwmark 0x80000
+# to main/default instead of table 52), so replies to tailnet clients go
+# out the LAN and blackhole. This unit steers tailnet-bound traffic to
+# table 52 ahead of those rules (pref 5200). Proven on worker-01: HTTPS
+# over the tailnet went from hanging SYNs to 200 in ~10ms. Idempotent and
+# harmless without Calico (empty table 52 simply does not match).
+  - path: /etc/systemd/system/tailnet-pod-routing.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Steer tailnet-bound traffic to Tailscale table 52 (fix Calico fwmark vs Tailscale policy routing)
+      After=network-online.target tailscaled.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'ip rule show | grep -q "to 100.64.0.0/10 lookup 52" || ip rule add to 100.64.0.0/10 lookup 52 pref 5200; ip -6 rule show | grep -q "fd7a:115c:a1e0::/48 lookup 52" || ip -6 rule add to fd7a:115c:a1e0::/48 lookup 52 pref 5200'
+
+      [Install]
+      WantedBy=multi-user.target
+%{endif}
 
 runcmd:
    - echo '${var.ssh_username}:${var.ssh_password}' | chpasswd
@@ -107,6 +131,8 @@ runcmd:
    # Install Tailscale and join the tailnet with a stable hostname (survives VM rebuilds)
    - curl -fsSL https://tailscale.com/install.sh | sh
    - tailscale up --authkey='${var.tailscale_auth_key}' --hostname=${var.vm_name} --accept-dns
+   # Steer tailnet-bound pod replies to table 52 (Calico fwmark fix above)
+   - systemctl enable --now tailnet-pod-routing.service
 %{endif}
 %{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
    # Point the split-DNS zone at this node's current Tailscale IP
