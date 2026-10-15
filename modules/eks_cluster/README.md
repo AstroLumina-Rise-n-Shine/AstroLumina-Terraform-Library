@@ -12,7 +12,7 @@
 module "eks_dev" {
   source = "git::https://github.com/AstroLumina-Rise-n-Shine/AstroLumina-Terraform-Library.git//modules/eks_cluster?ref=main"
 
-  name             = "astrolumina-dev"
+  name             = "astrolumina-development"
   kubernetes_version = "1.29"
   subnet_ids       = ["subnet-aaa", "subnet-bbb"]
 
