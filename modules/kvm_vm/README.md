@@ -34,7 +34,10 @@ module "vm" {
   the VM gets a stable LAN IP. Empty string means "no reservation".
 - `tailscale_auth_key` triggers the Tailscale install + join at first boot;
   pair it with `tailnet_dns_zone` on exactly one node per cluster to serve
-  split-DNS for that zone.
+  split-DNS for that zone. Every tailnet-joined VM also gets the
+  `tailnet-pod-routing` unit, which steers tailnet-bound traffic to table 52
+  (works around Calico's fwmark colliding with Tailscale policy routing;
+  harmless on non-RKE2 VMs).
 - `host_share_path` shares a host directory read-only via 9p (used for the
   Kubernetes manifests repo). The `mount_tag` must match between the domain
   definition and cloud-init, otherwise the guest mount fails at boot.
