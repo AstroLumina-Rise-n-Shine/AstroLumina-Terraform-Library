@@ -97,7 +97,13 @@ resource "aws_sns_topic_subscription" "email" {
 # compares ACTUAL spend with GREATER_THAN and publishes to the SNS topic
 # above, so hitting 50/80/100% (the defaults) rings the alarm before the
 # bill does.
+# Floci (and any provider configured with skip_requesting_account_id) never
+# resolves the caller account, and the Budgets API rejects an empty
+# AccountId: read the account explicitly so the module works everywhere.
+data "aws_caller_identity" "current" {}
+
 resource "aws_budgets_budget" "this" {
+  account_id   = data.aws_caller_identity.current.account_id
   name         = var.name
   budget_type  = var.budget_type
   limit_amount = var.limit_amount
@@ -108,8 +114,10 @@ resource "aws_budgets_budget" "this" {
     for_each = var.notification_thresholds
 
     content {
-      comparison_operator       = "GREATER_THAN"
-      threshold                 = each.value
+      comparison_operator = "GREATER_THAN"
+      # Inside a dynamic block the iterator is named after the block label
+      # ("notification"); "each" is only for resource-level for_each.
+      threshold                 = notification.value
       threshold_type            = "PERCENTAGE"
       notification_type         = "ACTUAL"
       subscriber_sns_topic_arns = [aws_sns_topic.this.arn]

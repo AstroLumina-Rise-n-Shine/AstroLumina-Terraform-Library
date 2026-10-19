@@ -22,6 +22,9 @@ resource "aws_dynamodb_table" "this" {
 
   hash_key = var.hash_key
 
+  # The sort (range) key is optional: null means a hash-key-only table.
+  range_key = var.range_key
+
   billing_mode = var.billing_mode
 
   # Capacity units are only meaningful (and only accepted) with PROVISIONED
@@ -37,10 +40,14 @@ resource "aws_dynamodb_table" "this" {
 
   # The range key is optional: declare it dynamically only when the caller
   # named one. The API rejects an empty attribute for the sort key.
+  #
+  # Note: inside a dynamic block the iterator is named after the block label
+  # ("attribute"), not "each" -- "each" belongs to resource-level for_each.
   dynamic "attribute" {
     for_each = var.range_key != null ? [var.range_key] : []
+
     content {
-      name = each.value
+      name = attribute.value
       type = var.range_key_type
     }
   }
