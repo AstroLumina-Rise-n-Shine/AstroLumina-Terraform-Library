@@ -55,6 +55,12 @@ variable "publish" {
   default     = false
 }
 
+variable "tracing_mode" {
+  description = "X-Ray tracing mode: Active (default -- every invocation traced) or PassThrough (no tracing)"
+  type        = string
+  default     = "Active"
+}
+
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string

@@ -74,6 +74,18 @@ variable "storage_encrypted" {
   default     = true
 }
 
+variable "performance_insights_enabled" {
+  description = "Enable Performance Insights (query-level monitoring; the default 7-day retention is in the free tier)"
+  type        = bool
+  default     = true
+}
+
+variable "performance_insights_retention_period" {
+  description = "Days of Performance Insights data kept (7 is the free tier; raise it only if you are ready to pay for the longer history)"
+  type        = number
+  default     = 7
+}
+
 variable "backup_retention_period" {
   description = "Days of automatic backups kept (0 disables; secure-ish default: 7)"
   type        = number

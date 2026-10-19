@@ -37,6 +37,13 @@ resource "aws_lambda_function" "this" {
   # don't need the extra $LATEST-version dance.
   publish = var.publish
 
+  # X-Ray tracing on by default: a serverless function without traces is a
+  # black box the first time it misbehaves (Trivy AWS-0066). Set the mode
+  # to PassThrough when there is no tracing backend to send segments to.
+  tracing_config {
+    mode = var.tracing_mode
+  }
+
   # Environment variables: the config surface between the function and the
   # rest of the stack (table names, endpoints...). Numbers come out as
   # strings, so code should treat them like strings.

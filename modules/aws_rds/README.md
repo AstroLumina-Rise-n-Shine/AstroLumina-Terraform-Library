@@ -51,6 +51,11 @@ module "rds_lab" {
 | `security_group_ids`  | list(string) | `[]`          | Security groups controlling who can reach the database port |
 | `publicly_accessible` | bool         | `false`       | Give the instance a public IP (keep false; reach it inside the VPC) |
 | `storage_encrypted`   | bool         | `true`        | Encrypt storage at rest with an AWS-managed key |
+| `backup_retention_period` | number   | `7`           | Days of automatic backups kept (0 disables) |
+| `iam_database_authentication_enabled` | bool | `true` | Let apps authenticate with short-lived IAM tokens instead of the master password |
+| `deletion_protection` | bool         | `true`        | Block accidental deletion of the instance; lab stacks set `false` so destroy stays one command |
+| `performance_insights_enabled` | bool | `true`      | Enable Performance Insights (query-level monitoring; the 7-day retention is free tier) |
+| `performance_insights_retention_period` | number | `7` | Days of Performance Insights data kept |
 | `skip_final_snapshot` | bool         | `true`        | Skip the final snapshot on destroy (fast, cheap teardown) |
 | `tags`                | map(string)  | `{}`          | Extra tags applied to every created object |
 | `environment`         | string       | n/a           | Deployment environment this stack belongs to; always stamped as the `Environment` tag |

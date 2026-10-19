@@ -48,6 +48,12 @@ resource "aws_db_instance" "this" {
   publicly_accessible = var.publicly_accessible
   storage_encrypted   = var.storage_encrypted
 
+  # Performance Insights: query-level history turns "the database is slow"
+  # into "this query is slow". The default 7-day retention sits in the free
+  # tier (Trivy AWS-0133).
+  performance_insights_enabled          = var.performance_insights_enabled
+  performance_insights_retention_period = var.performance_insights_retention_period
+
   # Continuous backups: 7 days by default -- enough to recover from an
   # "oops", short enough to stay cheap (Trivy AWS-0077).
   backup_retention_period = var.backup_retention_period
