@@ -15,6 +15,12 @@ that a log destination with server access logging enabled recurses forever.
 That one exception is recorded with a path-scoped entry in
 `.trivyignore.yaml` at the repo root.
 
+S3 caps bucket names at 63 characters, and the destination is derived as
+`<cloudtrail bucket>-access-logs` (12 characters). Keep the trail bucket name
+to 51 characters or fewer so the derived name fits; with the default
+`<name>-cloudtrail` bucket that means `name` must be 40 characters or fewer.
+The module fails at plan time with a clear message otherwise.
+
 ## Usage
 
 ```hcl
@@ -38,8 +44,8 @@ module "security_baseline" {
 | enable_cloudtrail_cloudwatch_logs | bool | true | Stream trail events to CloudWatch Logs through a scoped IAM role (Trivy AWS-0162). Ingestion is billed on real AWS |
 | cloudtrail_log_retention_days | number | 30 | Days trail events are kept in CloudWatch Logs (the S3 archive is unaffected) |
 | enable_cloudtrail_access_logging | bool | true | Enable S3 server access logging on the trail bucket (Trivy AWS-0089) |
-| cloudtrail_access_logs_bucket_name | string | null | Destination bucket for trail-bucket access logs. When null, defaults to "<cloudtrail bucket>-access-logs" |
-| cloudtrail_bucket_name | string | null | S3 bucket name for trail logs. When null, defaults to "<name>-cloudtrail" (Floci does not enforce global uniqueness; real AWS does) |
+| cloudtrail_access_logs_bucket_name | string | null | Destination bucket for trail-bucket access logs, 63 characters max. When null, defaults to "<cloudtrail bucket>-access-logs" |
+| cloudtrail_bucket_name | string | null | S3 bucket name for trail logs, 63 characters max; 51 max when access logging derives "<cloudtrail bucket>-access-logs". When null, defaults to "<name>-cloudtrail" (Floci does not enforce global uniqueness; real AWS does) |
 | environment | string | — | Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env. |
 | tags | map(string) | `{}` | Extra tags applied to every created object |
 

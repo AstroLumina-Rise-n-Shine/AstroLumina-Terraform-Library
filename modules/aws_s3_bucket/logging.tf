@@ -21,6 +21,14 @@ locals {
   log_bucket_name = "${var.name}-logs"
 }
 
+# Account owning the source bucket. Needed for the aws:SourceAccount half of
+# the destination bucket-policy guard. Gated on actually creating the
+# destination, so callers that disable logging or supply their own target
+# never pay for an STS call.
+data "aws_caller_identity" "current" {
+  count = local.create_log_bucket ? 1 : 0
+}
+
 resource "aws_s3_bucket" "logs" {
   count = local.create_log_bucket ? 1 : 0
 
@@ -28,6 +36,13 @@ resource "aws_s3_bucket" "logs" {
   force_destroy = var.force_destroy
 
   tags = merge(local.common_tags, { Name = local.log_bucket_name, Purpose = "server-access-logs" })
+
+  lifecycle {
+    precondition {
+      condition     = length(local.log_bucket_name) <= 63
+      error_message = "The derived access-log bucket name \"${local.log_bucket_name}\" exceeds the 63-character S3 limit. Use a name of at most 58 characters when the module creates the \"-logs\" destination, or supply logging_target_bucket."
+    }
+  }
 }
 
 # Versioning keeps every generation of every log object, so a compromised
@@ -72,9 +87,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "logs" {
 
 # Grant the S3 logging service principal write access to this destination.
 # New buckets use Object Ownership "BucketOwnerEnforced" (ACLs disabled), so
-# a bucket policy is the supported mechanism. The aws:SourceArn condition
-# pins delivery to this exact source bucket; bucket names are globally
-# unique, so no account-id lookup (and no STS endpoint) is needed.
+# a bucket policy is the supported mechanism. aws:SourceArn pins delivery to
+# this exact source bucket and aws:SourceAccount pins the account it belongs
+# to -- together they close the confused-deputy path.
 resource "aws_s3_bucket_policy" "logs" {
   count = local.create_log_bucket ? 1 : 0
 
@@ -89,7 +104,8 @@ resource "aws_s3_bucket_policy" "logs" {
       Action    = "s3:PutObject"
       Resource  = "${aws_s3_bucket.logs[0].arn}/*"
       Condition = {
-        ArnLike = { "aws:SourceArn" = aws_s3_bucket.this.arn }
+        ArnLike      = { "aws:SourceArn" = aws_s3_bucket.this.arn }
+        StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current[0].account_id }
       }
     }]
   })

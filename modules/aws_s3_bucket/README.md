@@ -8,11 +8,18 @@ on the calling side and explain it in a comment.
 
 Access logging is on by default and writes to a dedicated `<name>-logs`
 bucket (versioned, SSE-S3, private, with a bucket policy that only lets the
-S3 logging service principal write on behalf of this exact source bucket). Point
-several buckets at one shared destination with `logging_target_bucket`, or
-turn logging off with `enable_access_logging = false`. The destination
-bucket itself is deliberately not logged: AWS documents that logging a log
-destination recurses forever (see `.trivyignore.yaml` at the repo root).
+S3 logging service principal write on behalf of this exact source bucket and
+account). Point several buckets at one shared destination with
+`logging_target_bucket`, or turn logging off with
+`enable_access_logging = false`. The destination bucket itself is
+deliberately not logged: AWS documents that logging a log destination
+recurses forever (see `.trivyignore.yaml` at the repo root).
+
+S3 caps bucket names at 63 characters. Because the module derives the
+destination as `<name>-logs`, `name` must be 58 characters or fewer when the
+module creates that destination; the module fails at plan time with a clear
+message otherwise. Supplying `logging_target_bucket` removes the derived-name
+limit (the target still has to be a valid S3 bucket name).
 
 ## Usage
 
@@ -32,7 +39,7 @@ module "artifacts" {
 
 | Name               | Type        | Default    | Description                                                                                                                                                                                         |
 |--------------------|-------------|------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| name               | string      | -          | Bucket name. Must be globally unique on real AWS; on Floci any DNS-safe name works.                                                                                                                  |
+| name               | string      | -          | Bucket name. Must be globally unique on real AWS; on Floci any DNS-safe name works. 63 characters max; 58 max when the module creates the `<name>-logs` destination.                                 |
 | versioning_enabled | bool        | `true`     | Whether object versions are kept (Enabled) or paused (Suspended)                                                                                                                                     |
 | sse_algorithm      | string      | `AES256`   | Server-side encryption algorithm (`AES256` or `aws:kms`)                                                                                                                                             |
 | kms_key_arn        | string      | `null`     | KMS key ARN for server-side encryption -- only used when sse_algorithm is `aws:kms`                                                                                                                  |
@@ -52,3 +59,11 @@ module "artifacts" {
 | bucket_domain_name  | Regional endpoint hostname of the bucket (bucket + s3 + region)            |
 | logging_target_bucket | Bucket receiving access logs (null when logging is disabled)             |
 | logging_bucket_created | Whether the module created its own `<name>-logs` destination bucket     |
+
+## Floci note
+
+The access-logging path needs the S3 endpoint for the buckets themselves
+plus `sts` for the caller-identity lookup used in the destination bucket
+policy: `s3 = "http://localhost:4566"` and
+`sts = "http://localhost:4566"`. With `enable_access_logging = false` (or a
+caller-supplied `logging_target_bucket`) no STS call is made.

@@ -8,6 +8,15 @@ AstroLumina modules (EC2, ECS, RDS, ALB) expect to stand on — you usually
 call it once per environment and hand the subnet IDs to everything built
 on top.
 
+The flow-log role trust policy pins `aws:SourceAccount` plus the
+`vpc-flow-log/*` ARN for this account and region. AWS evaluates that
+condition against the flow-log ARN (not the VPC ARN); the flow-log ID does
+not exist until the flow log is created, so the policy uses the wildcard
+fallback AWS documents for that case. The inline policy keeps
+`CreateLogStream`/`PutLogEvents` scoped to the one log group and grants the
+account-level `DescribeLogGroups`/`DescribeLogStreams` actions on `*`, as
+AWS's flow-log role policy does.
+
 ## Usage
 
 ```hcl

@@ -67,6 +67,13 @@ resource "aws_s3_bucket" "trail_access_logs" {
   force_destroy = true
 
   tags = merge(local.common_tags, { Name = local.cloudtrail_access_logs_bucket_name, Purpose = "server-access-logs" })
+
+  lifecycle {
+    precondition {
+      condition     = length(local.cloudtrail_access_logs_bucket_name) <= 63
+      error_message = "The derived access-log bucket name \"${local.cloudtrail_access_logs_bucket_name}\" exceeds the 63-character S3 limit. Shorten var.name / var.cloudtrail_bucket_name, or pass a shorter cloudtrail_access_logs_bucket_name."
+    }
+  }
 }
 
 # Versioning preserves every log-object generation, so a compromised

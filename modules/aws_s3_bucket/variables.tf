@@ -1,6 +1,11 @@
 variable "name" {
-  description = "Bucket name. Must be globally unique on real AWS; on Floci any DNS-safe name works."
+  description = "Bucket name. Must be globally unique on real AWS; on Floci any DNS-safe name works. When the module creates the \"<name>-logs\" access-log destination, keep this to 58 characters or fewer (S3 caps bucket names at 63)."
   type        = string
+
+  validation {
+    condition     = length(var.name) <= 63
+    error_message = "name must be 63 characters or fewer (S3 bucket-name limit)."
+  }
 }
 
 variable "versioning_enabled" {

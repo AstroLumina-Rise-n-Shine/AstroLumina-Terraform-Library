@@ -40,15 +40,25 @@ variable "enable_cloudtrail_access_logging" {
 }
 
 variable "cloudtrail_access_logs_bucket_name" {
-  description = "Destination bucket for trail-bucket access logs. When null, defaults to \"<cloudtrail bucket>-access-logs\". The module creates and hardens this bucket, so the name must not already be in use."
+  description = "Destination bucket for trail-bucket access logs. When null, defaults to \"<cloudtrail bucket>-access-logs\". The module creates and hardens this bucket, so the name must not already be in use, and it must be 63 characters or fewer."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.cloudtrail_access_logs_bucket_name == null || length(var.cloudtrail_access_logs_bucket_name) <= 63
+    error_message = "cloudtrail_access_logs_bucket_name must be 63 characters or fewer (S3 bucket-name limit)."
+  }
 }
 
 variable "cloudtrail_bucket_name" {
-  description = "S3 bucket name for trail logs. When null, defaults to \"<name>-cloudtrail\" (Floci does not enforce global uniqueness; real AWS does)"
+  description = "S3 bucket name for trail logs. When null, defaults to \"<name>-cloudtrail\" (Floci does not enforce global uniqueness; real AWS does). With access logging enabled the derived destination appends \"-access-logs\", so keep this to 51 characters or fewer."
   type        = string
   default     = null
+
+  validation {
+    condition     = var.cloudtrail_bucket_name == null || length(var.cloudtrail_bucket_name) <= 63
+    error_message = "cloudtrail_bucket_name must be 63 characters or fewer (S3 bucket-name limit)."
+  }
 }
 
 variable "environment" {

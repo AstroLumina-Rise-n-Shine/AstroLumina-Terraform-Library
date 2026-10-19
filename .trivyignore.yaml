@@ -21,18 +21,19 @@ misconfigurations:
       encrypted.
 
   # AWS-0132 (HIGH, "use a customer-managed key for S3 encryption") on the
-  # CloudTrail access-log destination. AWS's own guidance for server access
-  # logging states that the destination bucket must use SSE-S3: the S3 log
-  # delivery account cannot read SSE-KMS objects, and "if the destination
+  # dedicated server-access-log destinations. AWS's own guidance for server
+  # access logging states that the destination bucket must use SSE-S3: the S3
+  # log delivery account cannot read SSE-KMS objects, and "if the destination
   # bucket uses SSE-KMS, Amazon S3 might deliver log objects that are
   # encrypted with a key that you can't access." Trivy's own message repeats
   # this caveat but still raises the finding, so this is a documented false
-  # positive for this one resource. The bucket is encrypted with AES256 and
-  # stays private (four public-access-block flags).
+  # positive for these resources. Both buckets are encrypted with AES256 and
+  # stay private (four public-access-block flags).
   - id: AVD-AWS-0132
     paths:
+      - "modules/aws_s3_bucket/logging.tf"
       - "modules/aws_security_baseline/cloudtrail_logging.tf"
     statement: >-
       S3 server-access-log destinations must use SSE-S3, not SSE-KMS: the log
       delivery account cannot read SSE-KMS objects (AWS S3 User Guide).
-      AES256 encryption is enabled and the bucket is private.
+      AES256 encryption is enabled and the buckets are private.

@@ -8,6 +8,21 @@ locals {
   # wins, otherwise create a rotating one unless the caller opted out.
   create_flow_logs_kms_key = var.enable_flow_logs && var.create_flow_logs_kms_key && var.flow_logs_kms_key_arn == null
   flow_logs_kms_key_arn    = var.flow_logs_kms_key_arn != null ? var.flow_logs_kms_key_arn : (local.create_flow_logs_kms_key ? aws_kms_key.flow_logs[0].arn : null)
+
+  # The VPC ARN carries the partition, region and account, so the role trust
+  # conditions below need no extra data source (and no STS call).
+  vpc_arn_parts = split(":", aws_vpc.this.arn)
+  account_id    = local.vpc_arn_parts[4]
+
+  # AWS evaluates the vpc-flow-logs.amazonaws.com sts:AssumeRole call against
+  # the *flow-log* ARN, not the VPC ARN:
+  # https://docs.aws.amazon.com/vpc/latest/userguide/flow-logs-iam-role.html
+  # The flow-log ID does not exist until aws_flow_log.this is created, and
+  # referencing aws_flow_log.this.arn here would create a Terraform dependency
+  # cycle (the flow log needs this role's ARN). AWS documents wildcarding the
+  # flow-log ID for exactly this case; partition, region, account and the
+  # vpc-flow-log resource type stay pinned.
+  flow_log_source_arn = "arn:${local.vpc_arn_parts[1]}:ec2:${local.vpc_arn_parts[3]}:${local.account_id}:vpc-flow-log/*"
 }
 
 # Customer-managed key for the flow-log group (Trivy AWS-0017). Rotation on,
@@ -34,7 +49,8 @@ resource "aws_cloudwatch_log_group" "flow_logs" {
 }
 
 # Role the VPC Flow Logs service assumes to write into the log group. The
-# inline policy is scoped to this one group; no other log group is reachable.
+# trust policy pins the account and the flow-log resource type (confused
+# deputy), and the inline policy writes to this one group only.
 resource "aws_iam_role" "flow_logs" {
   count = var.enable_flow_logs ? 1 : 0
 
@@ -46,6 +62,10 @@ resource "aws_iam_role" "flow_logs" {
       Effect    = "Allow"
       Principal = { Service = "vpc-flow-logs.amazonaws.com" }
       Action    = "sts:AssumeRole"
+      Condition = {
+        StringEquals = { "aws:SourceAccount" = local.account_id }
+        ArnLike      = { "aws:SourceArn" = local.flow_log_source_arn }
+      }
     }]
   })
 
@@ -60,16 +80,30 @@ resource "aws_iam_role_policy" "flow_logs" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Action = [
-        "logs:CreateLogStream",
-        "logs:PutLogEvents",
-        "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams",
-      ]
-      Resource = "${aws_cloudwatch_log_group.flow_logs[0].arn}:*"
-    }]
+    Statement = [
+      {
+        Sid    = "WriteFlowLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "${aws_cloudwatch_log_group.flow_logs[0].arn}:*"
+      },
+      {
+        # CloudWatch Logs describes are account-level list operations:
+        # DescribeLogGroups takes no resource type at all, so it cannot be
+        # scoped to one log group. AWS's own flow-log role policy grants
+        # these two actions on "*".
+        Sid    = "DescribeFlowLogDestinations"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+        ]
+        Resource = "*"
+      },
+    ]
   })
 }
 
