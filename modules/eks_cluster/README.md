@@ -3,8 +3,8 @@
 # Each call creates a complete, independent cluster: AWS-managed control
 # plane (version pinned via `kubernetes_version`) plus one Managed Node
 # Group (EC2 workers EKS maintains for you). For per-env clusters, call the
-# module once per env with a different `name` and size (see
-# examples/eks-clusters). Nothing is shared between the calls.
+# module once per env with a different `name` and size. Nothing is shared
+# between the calls.
 
 ## Usage
 
@@ -40,4 +40,4 @@ module "eks_dev" {
   the AMI, the bootstrap, and the rolling updates.
 - Tested against the Floci emulator (`eks`, `ec2`, `iam`, `autoscaling`
   services); on real AWS the same code works unchanged, only the provider
-  endpoints and credentials differ (see docs/04-eks-clusters.md).
+  endpoints and credentials differ (see the Floci setup guides in AstroLumina-AWS).
