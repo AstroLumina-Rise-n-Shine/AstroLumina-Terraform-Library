@@ -48,6 +48,18 @@ resource "aws_db_instance" "this" {
   publicly_accessible = var.publicly_accessible
   storage_encrypted   = var.storage_encrypted
 
+  # Continuous backups: 7 days by default -- enough to recover from an
+  # "oops", short enough to stay cheap (Trivy AWS-0077).
+  backup_retention_period = var.backup_retention_period
+
+  # Token-based access for applications instead of long-lived passwords
+  # (Trivy AWS-0176).
+  iam_database_authentication_enabled = var.iam_database_authentication_enabled
+
+  # Refuse deletion while true; labs flip it off so teardown is one command
+  # (Trivy AWS-0177).
+  deletion_protection = var.deletion_protection
+
   # No final snapshot by default: for a lab database the snapshot is a
   # leftover cost and a teardown blocker, not a safety net.
   skip_final_snapshot = var.skip_final_snapshot

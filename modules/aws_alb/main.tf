@@ -14,14 +14,18 @@ locals {
   )
 }
 
-# The edge: one ALB across at least two subnets. Fields left off here are
-# deliberate: deletion protection off (lab stacks must tear down cleanly)
-# and TLS off (plain HTTP listener -- put TLS termination on the caller's
-# side or extend this module when needed).
+# The edge: one ALB across at least two subnets. Deletion protection stays
+# off (lab stacks must tear down cleanly). The listener defaults to secure:
+# HTTPS on 443 with a caller-supplied certificate; emulators and labs
+# without real certificates pass listener_protocol = "HTTP" explicitly.
 resource "aws_lb" "this" {
   name               = var.name
   internal           = var.internal
   load_balancer_type = "application"
+
+  # Reject malformed headers at the edge (request-smuggling defense;
+  # Trivy AWS-0052).
+  drop_invalid_header_fields = true
 
   security_groups = var.security_group_ids
   subnets         = var.subnet_ids
@@ -53,7 +57,12 @@ resource "aws_lb_target_group" "this" {
 resource "aws_lb_listener" "this" {
   load_balancer_arn = aws_lb.this.arn
   port              = var.listener_port
-  protocol          = "HTTP"
+  protocol          = var.listener_protocol
+
+  # Certificates belong on TLS listeners only; sending one with plain
+  # HTTP is an API error, so null both out for HTTP.
+  certificate_arn = var.listener_protocol == "HTTPS" ? var.certificate_arn : null
+  ssl_policy      = var.listener_protocol == "HTTPS" ? var.ssl_policy : null
 
   default_action {
     type             = "forward"

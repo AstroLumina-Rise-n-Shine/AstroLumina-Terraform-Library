@@ -20,6 +20,14 @@ locals {
 resource "aws_ecs_cluster" "this" {
   name = var.name
 
+  # Container Insights: per-service CPU/memory/task metrics, included at
+  # lab scale and the difference between "it is slow" and "no idea why"
+  # (Trivy AWS-0034).
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
+
   tags = local.common_tags
 }
 

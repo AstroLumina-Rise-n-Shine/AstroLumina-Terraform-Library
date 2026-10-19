@@ -42,6 +42,42 @@ resource "aws_kms_alias" "this" {
   target_key_id = aws_kms_key.this.key_id
 }
 
+# The account id is derived from the key's own ARN (fifth field) so no data
+# source is needed to build the root principal of the key policy.
+locals {
+  account_id = split(":", aws_kms_key.this.arn)[4]
+}
+
+# Explicit key policy: the account root keeps full control, and CloudTrail
+# (only) may use the key to encrypt trail files -- pinned by SourceArn so a
+# foreign-account trail cannot ride our key (confused-deputy guard).
+resource "aws_kms_key_policy" "this" {
+  key_id = aws_kms_key.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableAccountRootAccess"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowCloudTrailEncrypt"
+        Effect    = "Allow"
+        Principal = { Service = "cloudtrail.amazonaws.com" }
+        Action    = ["kms:GenerateDataKey*", "kms:DescribeKey"]
+        Resource  = "*"
+        Condition = {
+          StringLike = { "aws:SourceArn" = "arn:aws:cloudtrail:*:*:trail/*" }
+        }
+      }
+    ]
+  })
+}
+
 # GuardDuty: continuous threat-detection scanning CloudTrail and flow logs.
 # One detector per account/region. Count-gated so lab runs can switch it
 # off (it is billed per analysis) without restructuring the module.
@@ -100,6 +136,21 @@ resource "aws_s3_bucket_public_access_block" "trail" {
   restrict_public_buckets = true
 }
 
+# Encrypt trail files with the customer-managed key instead of the
+# AWS-managed default (Trivy AWS-0132) -- same key the trail itself uses.
+resource "aws_s3_bucket_server_side_encryption_configuration" "trail" {
+  count = var.enable_cloudtrail ? 1 : 0
+
+  bucket = aws_s3_bucket.trail[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.this.arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
 # Bucket policy that lets ONLY the CloudTrail service write into the
 # ./AWSLogs/* prefix, and only on behalf of trails whose ARN matches the
 # aws:SourceArn condition -- the confused-deputy guard that stops other
@@ -137,6 +188,14 @@ resource "aws_cloudtrail" "this" {
   is_multi_region_trail         = true
   include_global_service_events = true
   enable_logging                = true
+
+  # Signed digest files make any tampering with the log archive detectable
+  # (Trivy AWS-0016).
+  enable_log_file_validation = true
+
+  # Encrypt the trail with the baseline customer-managed key instead of an
+  # AWS-managed one (Trivy AWS-0015).
+  kms_key_id = aws_kms_key.this.arn
 
   tags = local.common_tags
 }

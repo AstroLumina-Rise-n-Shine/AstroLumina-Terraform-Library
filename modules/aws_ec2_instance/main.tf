@@ -32,5 +32,19 @@ resource "aws_instance" "this" {
   # put real sprawl in bash-side provisioning.
   user_data = var.user_data
 
+  # IMDSv2 only: metadata requests must present a session token, which
+  # kills the classic SSRF-to-credentials attack path (Trivy AWS-0028).
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
+  }
+
+  # Encrypt the boot volume (Trivy AWS-0131); gp3 is the modern default
+  # volume type on real AWS.
+  root_block_device {
+    encrypted   = true
+    volume_type = "gp3"
+  }
+
   tags = merge(local.common_tags, { Name = var.name })
 }

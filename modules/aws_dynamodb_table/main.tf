@@ -55,5 +55,11 @@ resource "aws_dynamodb_table" "this" {
     }
   }
 
+  # Continuous backups, restorable to any second in the last 35 days.
+  # Costs nothing while the table is idle (Trivy AWS-0024).
+  point_in_time_recovery {
+    enabled = true
+  }
+
   tags = merge(local.common_tags, { Name = var.name })
 }

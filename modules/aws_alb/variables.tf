@@ -19,15 +19,38 @@ variable "security_group_ids" {
 }
 
 variable "internal" {
-  description = "Internal load balancer (would be true for VPC-only ingress, e.g. behind a VPN)"
+  description = "Internal load balancer. Secure default: true (VPC-only ingress); set false only for deliberately internet-facing entry points (Trivy AWS-0053)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "listener_port" {
-  description = "Port the ALB listener accepts traffic on"
+  description = "Port the ALB listener accepts traffic on (443 for HTTPS, 80 for plain HTTP)"
   type        = number
-  default     = 80
+  default     = 443
+}
+
+variable "listener_protocol" {
+  description = "Listener protocol. Secure default: HTTPS (Trivy AWS-0054); labs/emulators without certificates pass HTTP explicitly."
+  type        = string
+  default     = "HTTPS"
+
+  validation {
+    condition     = contains(["HTTPS", "HTTP"], var.listener_protocol)
+    error_message = "listener_protocol must be HTTPS or HTTP."
+  }
+}
+
+variable "certificate_arn" {
+  description = "ACM (or imported) certificate ARN used by the HTTPS listener; required when listener_protocol = HTTPS"
+  type        = string
+  default     = null
+}
+
+variable "ssl_policy" {
+  description = "TLS policy for the HTTPS listener"
+  type        = string
+  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 }
 
 variable "target_port" {

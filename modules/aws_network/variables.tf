@@ -33,6 +33,12 @@ variable "enable_nat_gateway" {
   default     = false
 }
 
+variable "map_public_ip_on_launch" {
+  description = "Auto-assign public IPs to instances launched in the public subnets. Secure default: false -- opt in only for deliberately internet-facing lab stacks (Trivy AWS-0164)."
+  type        = bool
+  default     = false
+}
+
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string

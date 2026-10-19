@@ -74,6 +74,24 @@ variable "storage_encrypted" {
   default     = true
 }
 
+variable "backup_retention_period" {
+  description = "Days of automatic backups kept (0 disables; secure-ish default: 7)"
+  type        = number
+  default     = 7
+}
+
+variable "iam_database_authentication_enabled" {
+  description = "Enable IAM database authentication so apps can use short-lived tokens instead of the master password"
+  type        = bool
+  default     = true
+}
+
+variable "deletion_protection" {
+  description = "Block accidental deletion of the instance. Secure default: true; lab stacks set false so destroy stays one command."
+  type        = bool
+  default     = true
+}
+
 variable "skip_final_snapshot" {
   description = "Skip the final snapshot on destroy -- learning-friendly default: fast, cheap teardown instead of a leftover backup cost"
   type        = bool

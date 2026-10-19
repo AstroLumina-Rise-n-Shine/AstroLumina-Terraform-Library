@@ -45,7 +45,10 @@ resource "aws_subnet" "public" {
   cidr_block        = var.public_subnet_cidrs[count.index]
   availability_zone = length(var.availability_zones) > count.index ? var.availability_zones[count.index] : null
 
-  map_public_ip_on_launch = true
+  # Secure default (false): public subnets are internet-routable through
+  # the route table below, but instances only auto-get a public IP when
+  # the caller explicitly asks (var.map_public_ip_on_launch = true).
+  map_public_ip_on_launch = var.map_public_ip_on_launch
 
   tags = merge(local.common_tags, { Name = "${var.name}-public-${count.index + 1}" })
 }

@@ -14,6 +14,58 @@ locals {
   )
 }
 
+# Customer-managed key for the alert topic. Trivy (AWS-0136) does not
+# accept the AWS-managed alias/aws/sns here: a CMK keeps rotation and
+# access control in our hands instead of AWS's.
+resource "aws_kms_key" "this" {
+  description             = "Encrypts the ${var.name} SNS alert topic"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "this" {
+  name          = "alias/${var.name}-sns"
+  target_key_id = aws_kms_key.this.key_id
+}
+
+# The account id is derived from the key's own ARN (fifth field) so no
+# data source is needed to build the root principal of the key policy.
+locals {
+  account_id = split(":", aws_kms_key.this.arn)[4]
+}
+
+# Key policy: the account root keeps full control, and the SNS service may
+# encrypt/decrypt for this topic only (SourceArn-pinned confused-deputy
+# guard). Budgets publishes through SNS, so it needs no direct grant.
+resource "aws_kms_key_policy" "this" {
+  key_id = aws_kms_key.this.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "EnableAccountRootAccess"
+        Effect    = "Allow"
+        Principal = { AWS = "arn:aws:iam::${local.account_id}:root" }
+        Action    = "kms:*"
+        Resource  = "*"
+      },
+      {
+        Sid       = "AllowSNSEncryptDecrypt"
+        Effect    = "Allow"
+        Principal = { Service = "sns.amazonaws.com" }
+        Action    = ["kms:Decrypt", "kms:GenerateDataKey*"]
+        Resource  = "*"
+        Condition = {
+          StringEquals = { "aws:SourceArn" = aws_sns_topic.this.arn }
+        }
+      }
+    ]
+  })
+}
+
 # The SNS topic that receives budget notifications. AWS Budgets cannot send
 # email directly; it publishes to SNS and every email endpoint subscribed
 # here gets a confirmation message that must be clicked once before alerts
@@ -21,6 +73,10 @@ locals {
 # collects alerts nobody reads.
 resource "aws_sns_topic" "this" {
   name = var.name
+
+  # Encrypt the alert topic with the module's own customer-managed key
+  # instead of the AWS-managed default (Trivy AWS-0095/AWS-0136).
+  kms_master_key_id = aws_kms_key.this.arn
 
   tags = local.common_tags
 }
