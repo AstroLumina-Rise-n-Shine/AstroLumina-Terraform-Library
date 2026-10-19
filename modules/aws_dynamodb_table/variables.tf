@@ -66,6 +66,18 @@ variable "ttl_attribute" {
   default     = null
 }
 
+variable "create_kms_key" {
+  description = "Create a dedicated customer-managed KMS key (with rotation) for table encryption when kms_key_arn is null. On real AWS a CMK costs about $1/month; set false to keep the AWS-managed key (which reintroduces Trivy AWS-0025)."
+  type        = bool
+  default     = true
+}
+
+variable "kms_key_arn" {
+  description = "Existing customer-managed KMS key ARN for table encryption. When null and create_kms_key is true, the module creates one. Bring your own key to share a key across tables."
+  type        = string
+  default     = null
+}
+
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string

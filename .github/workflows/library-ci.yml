@@ -108,6 +108,9 @@ jobs:
           format: table
           severity: "CRITICAL,HIGH"
           exit-code: "1"
+          # Path-scoped exceptions for the S3 log-destination buckets
+          # (see .trivyignore.yaml). YAML ignores need an explicit file.
+          trivyignores: .trivyignore.yaml
 
       - name: Build Trivy SARIF report (all severities)
         if: always()
@@ -118,6 +121,8 @@ jobs:
           format: sarif
           output: trivy-results.sarif
           exit-code: "0"
+          # Keep the SARIF report aligned with the gate's scoped exceptions.
+          trivyignores: .trivyignore.yaml
 
       - name: Upload SARIF to code scanning
         if: always()

@@ -21,6 +21,29 @@ variable "kms_key_arn" {
   default     = null
 }
 
+variable "enable_access_logging" {
+  description = "Enable S3 server access logging (Trivy AWS-0089). When logging_target_bucket is null, a dedicated \"<name>-logs\" destination bucket is created."
+  type        = bool
+  default     = true
+}
+
+variable "logging_target_bucket" {
+  description = "Existing bucket to receive server access logs. When null, the module creates \"<name>-logs\" and grants logging.s3.amazonaws.com write access to it. A caller-supplied bucket must already allow that principal to PutObject."
+  type        = string
+  default     = null
+}
+
+variable "access_logs_prefix" {
+  description = "Key prefix for access log objects in the destination bucket (include the trailing slash)"
+  type        = string
+  default     = "access-logs/"
+
+  validation {
+    condition     = !startswith(var.access_logs_prefix, "/")
+    error_message = "access_logs_prefix must not start with a slash."
+  }
+}
+
 variable "force_destroy" {
   description = "Learning-friendly: destroy the bucket even when it still holds objects"
   type        = bool

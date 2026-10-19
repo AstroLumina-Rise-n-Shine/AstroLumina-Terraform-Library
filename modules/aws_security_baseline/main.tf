@@ -20,6 +20,14 @@ locals {
 # enforce global bucket-name uniqueness; real AWS does.)
 locals {
   cloudtrail_bucket_name = var.cloudtrail_bucket_name != null ? var.cloudtrail_bucket_name : "${var.name}-cloudtrail"
+
+  # Destination bucket for server access logs on the trail bucket. Kept
+  # separate on purpose: AWS documents that the log destination itself must
+  # not have access logging (that would log log deliveries forever).
+  cloudtrail_access_logs_bucket_name = var.cloudtrail_access_logs_bucket_name != null ? var.cloudtrail_access_logs_bucket_name : "${local.cloudtrail_bucket_name}-access-logs"
+
+  # CloudTrail can only stream to CloudWatch when the trail itself exists.
+  cloudtrail_cloudwatch_logs_enabled = var.enable_cloudtrail && var.enable_cloudtrail_cloudwatch_logs
 }
 
 # Customer-managed KMS key for the account. It can envelope-encrypt the
@@ -72,6 +80,27 @@ resource "aws_kms_key_policy" "this" {
         Resource  = "*"
         Condition = {
           StringLike = { "aws:SourceArn" = "arn:aws:cloudtrail:*:*:trail/*" }
+        }
+      },
+      {
+        # CloudWatch Logs encrypts the trail's log group with this key. The
+        # encryption-context condition pins access to the baseline's own log
+        # group, so the statement cannot be reused for any other group.
+        Sid       = "AllowCloudWatchLogsEncrypt"
+        Effect    = "Allow"
+        Principal = { Service = "logs.amazonaws.com" }
+        Action = [
+          "kms:Encrypt*",
+          "kms:Decrypt*",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:Describe*",
+        ]
+        Resource = "*"
+        Condition = {
+          ArnLike = {
+            "kms:EncryptionContext:aws:logs:arn" = "arn:aws:logs:*:${local.account_id}:log-group:/aws/cloudtrail/${var.name}"
+          }
         }
       }
     ]
@@ -197,5 +226,14 @@ resource "aws_cloudtrail" "this" {
   # AWS-managed one (Trivy AWS-0015).
   kms_key_id = aws_kms_key.this.arn
 
+  # Stream events to CloudWatch Logs for real-time analysis (Trivy AWS-0162).
+  # The destination group and the role CloudTrail assumes to write into it
+  # live in cloudtrail_logging.tf; both are gated by the same toggle.
+  cloud_watch_logs_group_arn = local.cloudtrail_cloudwatch_logs_enabled ? "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*" : null
+  cloud_watch_logs_role_arn  = local.cloudtrail_cloudwatch_logs_enabled ? aws_iam_role.cloudtrail[0].arn : null
+
   tags = local.common_tags
+
+  # The role policy must exist before CloudTrail validates the destination.
+  depends_on = [aws_iam_role_policy.cloudtrail]
 }

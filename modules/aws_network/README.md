@@ -2,10 +2,11 @@
 
 Creates a complete VPC network scaffold: one VPC, an internet gateway,
 public and private subnets, matching route tables with the right default
-routes, and an optional single NAT gateway. It is the "ground floor" that
-other AstroLumina modules (EC2, ECS, RDS, ALB) expect to stand on — you
-usually call it once per environment and hand the subnet IDs to everything
-built on top.
+routes, an optional single NAT gateway, and VPC Flow Logs to CloudWatch
+Logs by default (Trivy AWS-0178). It is the "ground floor" that other
+AstroLumina modules (EC2, ECS, RDS, ALB) expect to stand on — you usually
+call it once per environment and hand the subnet IDs to everything built
+on top.
 
 ## Usage
 
@@ -32,6 +33,11 @@ module "network" {
 | public_subnet_cidrs  | list(string)  | `["10.0.1.0/24", "10.0.2.0/24"]` | CIDRs for the public subnets (internet-facing tier)                                                                                                      |
 | private_subnet_cidrs | list(string)  | `["10.0.11.0/24", "10.0.12.0/24"]` | CIDRs for the private subnets (internal tier)                                                                                                          |
 | enable_nat_gateway   | bool          | `false`                          | One NAT gateway for all private subnets (cost-conscious default: off)                                                                                    |
+| enable_flow_logs     | bool          | `true`                           | Capture ALL VPC flows to CloudWatch Logs through a scoped IAM role (Trivy AWS-0178). CloudWatch ingestion is billed on real AWS                           |
+| flow_logs_retention_days | number    | `7`                              | Days VPC Flow Log records are kept in CloudWatch Logs                                                                                                     |
+| flow_logs_traffic_type | string      | `ALL`                            | Which flows to capture: ALL, ACCEPT or REJECT                                                                                                             |
+| create_flow_logs_kms_key | bool      | `true`                           | Create a dedicated rotating CMK for the flow-log group (Trivy AWS-0017). A CMK costs about $1/month on real AWS                                           |
+| flow_logs_kms_key_arn | string     | `null`                           | Existing CMK ARN for the flow-log group instead of creating one                                                                                           |
 | environment          | string        | -                                | Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env. |
 | tags                 | map(string)   | `{}`                             | Extra tags applied to every created object                                                                                                               |
 
@@ -45,3 +51,13 @@ module "network" {
 | private_subnet_ids    | IDs of the private subnets (internal tier)                                                       |
 | internet_gateway_id   | ID of the internet gateway attached to the VPC                                                   |
 | nat_gateway_ids       | IDs of the NAT gateways (list with one entry when enabled, empty when disabled)                   |
+| flow_log_id           | ID of the VPC Flow Log (null when disabled)                                                      |
+| flow_logs_log_group_name | Name of the CloudWatch Logs group receiving VPC Flow Logs (null when disabled)                 |
+| flow_logs_role_arn    | ARN of the IAM role VPC Flow Logs assumes to write to CloudWatch Logs (null when disabled)        |
+| flow_logs_kms_key_arn | ARN of the CMK encrypting the flow-log group (null when disabled or key creation was opted out)   |
+
+## Floci note
+
+The flow-log path needs `logs`, `iam` and `kms` endpoints in addition to
+`ec2`: `logs = "http://localhost:4566"`, `iam = "http://localhost:4566"`
+and `kms = "http://localhost:4566"`.

@@ -12,6 +12,25 @@ locals {
       Environment = var.environment
     }
   )
+
+  # Performance Insights key resolution: caller-supplied CMK wins, otherwise
+  # create a dedicated one when PI is enabled and the caller did not opt out.
+  # No key is created when PI is off (the key would be unused and billed).
+  create_pi_kms_key = var.performance_insights_enabled && var.create_kms_key && var.kms_key_arn == null
+  pi_kms_key_arn    = var.performance_insights_enabled ? (var.kms_key_arn != null ? var.kms_key_arn : (local.create_pi_kms_key ? aws_kms_key.this[0].arn : null)) : null
+}
+
+# Dedicated customer-managed key for Performance Insights (Trivy AWS-0078).
+# Rotation is on; the short deletion window keeps lab teardown cheap. A CMK
+# costs about $1/month on real AWS, so create_kms_key can be set to false.
+resource "aws_kms_key" "this" {
+  count = local.create_pi_kms_key ? 1 : 0
+
+  description             = "AstroLumina RDS Performance Insights key for ${var.name}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = merge(local.common_tags, { Name = "${var.name}-performance-insights" })
 }
 
 # A DB subnet group is how RDS learns where it is allowed to live: you hand
@@ -53,6 +72,11 @@ resource "aws_db_instance" "this" {
   # tier (Trivy AWS-0133).
   performance_insights_enabled          = var.performance_insights_enabled
   performance_insights_retention_period = var.performance_insights_retention_period
+
+  # Encrypt PI data with the module-created (or caller-supplied) CMK instead
+  # of the AWS-managed key (Trivy AWS-0078). Null when PI is disabled:
+  # RDS rejects a key id on a DB instance with PI turned off.
+  performance_insights_kms_key_id = local.pi_kms_key_arn
 
   # Continuous backups: 7 days by default -- enough to recover from an
   # "oops", short enough to stay cheap (Trivy AWS-0077).

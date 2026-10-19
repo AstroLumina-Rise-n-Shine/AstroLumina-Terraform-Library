@@ -17,3 +17,23 @@ output "cloudtrail_arn" {
   description = "ARN of the CloudTrail trail (null when enable_cloudtrail is false)"
   value       = var.enable_cloudtrail ? aws_cloudtrail.this[0].arn : null
 }
+
+output "cloudtrail_log_group_arn" {
+  description = "ARN of the CloudWatch Logs group receiving trail events (null when CloudTrail or CloudWatch logging is disabled)"
+  value       = local.cloudtrail_cloudwatch_logs_enabled ? aws_cloudwatch_log_group.cloudtrail[0].arn : null
+}
+
+output "cloudtrail_log_group_name" {
+  description = "Name of the CloudWatch Logs group receiving trail events (null when CloudTrail or CloudWatch logging is disabled)"
+  value       = local.cloudtrail_cloudwatch_logs_enabled ? aws_cloudwatch_log_group.cloudtrail[0].name : null
+}
+
+output "cloudtrail_logging_role_arn" {
+  description = "ARN of the IAM role CloudTrail assumes to write to CloudWatch Logs (null when disabled)"
+  value       = local.cloudtrail_cloudwatch_logs_enabled ? aws_iam_role.cloudtrail[0].arn : null
+}
+
+output "cloudtrail_access_logs_bucket" {
+  description = "Bucket receiving server access logs for the trail bucket (null when access logging is disabled)"
+  value       = var.enable_cloudtrail && var.enable_cloudtrail_access_logging ? aws_s3_bucket.trail_access_logs[0].id : null
+}

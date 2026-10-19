@@ -12,3 +12,8 @@ output "table_id" {
   description = "ID of the table (table name, as DynamoDB reports it)"
   value       = aws_dynamodb_table.this.id
 }
+
+output "kms_key_arn" {
+  description = "ARN of the customer-managed key encrypting the table (null when create_kms_key is false and no kms_key_arn was supplied)"
+  value       = local.kms_key_arn
+}

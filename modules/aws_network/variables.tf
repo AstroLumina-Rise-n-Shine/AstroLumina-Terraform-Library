@@ -39,6 +39,41 @@ variable "map_public_ip_on_launch" {
   default     = false
 }
 
+variable "enable_flow_logs" {
+  description = "Capture VPC Flow Logs to CloudWatch Logs (Trivy AWS-0178). CloudWatch Logs ingestion is billed on real AWS; disable only if that cost outweighs the network visibility."
+  type        = bool
+  default     = true
+}
+
+variable "create_flow_logs_kms_key" {
+  description = "Create a dedicated customer-managed KMS key (rotation on) for the flow-log group when flow_logs_kms_key_arn is null. On real AWS a CMK costs about $1/month; set false to keep the CloudWatch-managed key (reintroduces Trivy AWS-0017)."
+  type        = bool
+  default     = true
+}
+
+variable "flow_logs_kms_key_arn" {
+  description = "Existing customer-managed KMS key ARN for the flow-log group. When null and create_flow_logs_kms_key is true, the module creates one."
+  type        = string
+  default     = null
+}
+
+variable "flow_logs_retention_days" {
+  description = "Days VPC Flow Log records are kept in CloudWatch Logs"
+  type        = number
+  default     = 7
+}
+
+variable "flow_logs_traffic_type" {
+  description = "Which flows to capture: ALL, ACCEPT or REJECT"
+  type        = string
+  default     = "ALL"
+
+  validation {
+    condition     = contains(["ALL", "ACCEPT", "REJECT"], var.flow_logs_traffic_type)
+    error_message = "flow_logs_traffic_type must be one of ALL, ACCEPT, REJECT."
+  }
+}
+
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
