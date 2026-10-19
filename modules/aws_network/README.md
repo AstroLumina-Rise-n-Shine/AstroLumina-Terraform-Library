@@ -13,9 +13,9 @@ The flow-log role trust policy pins `aws:SourceAccount` plus the
 condition against the flow-log ARN (not the VPC ARN); the flow-log ID does
 not exist until the flow log is created, so the policy uses the wildcard
 fallback AWS documents for that case. The inline policy keeps
-`CreateLogStream`/`PutLogEvents` scoped to the one log group and grants the
-account-level `DescribeLogGroups`/`DescribeLogStreams` actions on `*`, as
-AWS's flow-log role policy does.
+`CreateLogStream`/`PutLogEvents` scoped to the one log group. The
+`DescribeLogGroups`/`DescribeLogStreams` pair is granted on `*`, matching
+AWS's flow-log role policy (`DescribeLogGroups` has no resource type at all).
 
 ## Usage
 

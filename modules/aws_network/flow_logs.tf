@@ -91,10 +91,9 @@ resource "aws_iam_role_policy" "flow_logs" {
         Resource = "${aws_cloudwatch_log_group.flow_logs[0].arn}:*"
       },
       {
-        # CloudWatch Logs describes are account-level list operations:
         # DescribeLogGroups takes no resource type at all, so it cannot be
-        # scoped to one log group. AWS's own flow-log role policy grants
-        # these two actions on "*".
+        # scoped to one log group. AWS's own flow-log role policy grants both
+        # describe actions on "*", so keep them together here.
         Sid    = "DescribeFlowLogDestinations"
         Effect = "Allow"
         Action = [
