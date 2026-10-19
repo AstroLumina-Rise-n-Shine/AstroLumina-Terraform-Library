@@ -44,7 +44,7 @@ jobs:
         # Everything matching the ignore patterns below -- docs, pipelines,
         # repo meta -- never affects a module consumer, so a merge touching
         # only those reuses the latest tag instead of cutting a new version.
-        # Anything NOT listed (modules/**, examples/**/*.tf) counts as code.
+        # Anything NOT listed (modules/**/*.tf) counts as code.
         id: changes
         run: |
           base="${{ github.event.before }}"
