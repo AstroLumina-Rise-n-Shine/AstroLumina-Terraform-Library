@@ -12,6 +12,28 @@ locals {
       Environment = var.environment
     }
   )
+
+  # Encryption key resolution: a caller-supplied CMK always wins; otherwise
+  # create a dedicated one unless the caller explicitly opted out. Keeping
+  # the resolution in locals lets the table reference one expression while
+  # the key resource stays count-gated.
+  create_kms_key = var.create_kms_key && var.kms_key_arn == null
+  kms_key_arn    = var.kms_key_arn != null ? var.kms_key_arn : (local.create_kms_key ? aws_kms_key.this[0].arn : null)
+}
+
+# Dedicated customer-managed key for table encryption (Trivy AWS-0025).
+# Rotation is on and the deletion window is short so lab teardown does not
+# leave a key scheduled for deletion for a month. A CMK costs about
+# $1/month on real AWS; callers that cannot pay it set create_kms_key=false
+# and keep the AWS-managed key instead.
+resource "aws_kms_key" "this" {
+  count = local.create_kms_key ? 1 : 0
+
+  description             = "AstroLumina DynamoDB table key for ${var.name}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = merge(local.common_tags, { Name = "${var.name}-dynamodb" })
 }
 
 # One DynamoDB table, optionally with a sort (range) key and TTL.
@@ -66,6 +88,15 @@ resource "aws_dynamodb_table" "this" {
   # Costs nothing while the table is idle (Trivy AWS-0024).
   point_in_time_recovery {
     enabled = true
+  }
+
+  # Encrypt with the module-created (or caller-supplied) CMK instead of the
+  # AWS-managed key, so key policy, grants and rotation stay under our
+  # control. With create_kms_key=false and no kms_key_arn this block keeps
+  # encryption on but falls back to the AWS-managed key.
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = local.kms_key_arn
   }
 
   tags = merge(local.common_tags, { Name = var.name })

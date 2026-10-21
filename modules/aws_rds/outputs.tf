@@ -22,3 +22,8 @@ output "db_name" {
   description = "Name of the initial database created inside the instance"
   value       = aws_db_instance.this.db_name
 }
+
+output "performance_insights_kms_key_arn" {
+  description = "ARN of the customer-managed key encrypting Performance Insights data (null when PI is disabled, or when create_kms_key is false and no kms_key_arn was supplied)"
+  value       = local.pi_kms_key_arn
+}

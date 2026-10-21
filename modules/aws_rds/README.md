@@ -33,6 +33,12 @@ module "rds_lab" {
   down; in production switch to a secrets manager instead.
 - `skip_final_snapshot = true` by default so destroying the lab stack does
   not leave a snapshot behind (cost + blocker on teardown).
+- Performance Insights is encrypted with a dedicated customer-managed KMS
+  key with rotation by default (Trivy AWS-0078). Bring your own key with
+  `kms_key_arn`, or set `create_kms_key = false` to keep the AWS-managed
+  key. No key is created when `performance_insights_enabled = false`.
+- When running against Floci with the default key creation, add
+  `kms = "http://localhost:4566"` to the provider `endpoints` block.
 
 ## Inputs
 
@@ -56,6 +62,8 @@ module "rds_lab" {
 | `deletion_protection` | bool         | `true`        | Block accidental deletion of the instance; lab stacks set `false` so destroy stays one command |
 | `performance_insights_enabled` | bool | `true`      | Enable Performance Insights (query-level monitoring; the 7-day retention is free tier) |
 | `performance_insights_retention_period` | number | `7` | Days of Performance Insights data kept |
+| `create_kms_key`      | bool         | `true`        | Create a dedicated customer-managed KMS key (rotation on) for Performance Insights when `kms_key_arn` is null and PI is enabled. A CMK costs about $1/month on real AWS |
+| `kms_key_arn`         | string       | `null`        | Existing customer-managed KMS key ARN for Performance Insights encryption |
 | `skip_final_snapshot` | bool         | `true`        | Skip the final snapshot on destroy (fast, cheap teardown) |
 | `tags`                | map(string)  | `{}`          | Extra tags applied to every created object |
 | `environment`         | string       | n/a           | Deployment environment this stack belongs to; always stamped as the `Environment` tag |
@@ -69,3 +77,4 @@ module "rds_lab" {
 | `db_instance_address`| Connection hostname (endpoint) of the RDS instance |
 | `db_instance_port`  | Port the database listens on                       |
 | `db_name`           | Name of the initial database created inside the instance |
+| `performance_insights_kms_key_arn` | ARN of the CMK encrypting Performance Insights data (null when PI is off or key creation was opted out) |

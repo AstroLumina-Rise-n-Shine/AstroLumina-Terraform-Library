@@ -80,6 +80,18 @@ variable "performance_insights_enabled" {
   default     = true
 }
 
+variable "create_kms_key" {
+  description = "Create a dedicated customer-managed KMS key (with rotation) for Performance Insights when kms_key_arn is null and PI is enabled. On real AWS a CMK costs about $1/month; set false to keep the AWS-managed key (which reintroduces Trivy AWS-0078)."
+  type        = bool
+  default     = true
+}
+
+variable "kms_key_arn" {
+  description = "Existing customer-managed KMS key ARN for Performance Insights encryption. When null and create_kms_key is true, the module creates one. Bring your own key to share a key across instances."
+  type        = string
+  default     = null
+}
+
 variable "performance_insights_retention_period" {
   description = "Days of Performance Insights data kept (7 is the free tier; raise it only if you are ready to pay for the longer history)"
   type        = number
