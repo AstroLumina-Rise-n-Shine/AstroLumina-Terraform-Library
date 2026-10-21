@@ -13,7 +13,7 @@ Hands-on labs, the AWS learning path and the Floci setup guides live in
 ```
 modules/
   kvm_vm/                 # Single KVM virtual machine (libvirt + cloud-init)
-  eks_cluster/            # EKS cluster + managed node group (control plane managed by AWS)
+  aws_eks/                # EKS cluster + managed node group (control plane managed by AWS)
   aws_network/            # VPC, public/private subnets, internet gateway, optional NAT
   aws_s3_bucket/          # S3 bucket + versioning, SSE, public-access block
   aws_dynamodb_table/     # DynamoDB table with optional range key and TTL

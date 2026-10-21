@@ -1,4 +1,4 @@
-# eks_cluster: one EKS cluster per call, workers included.
+# aws_eks: one EKS cluster per call, workers included.
 #
 # Each call creates a complete, independent cluster: AWS-managed control
 # plane (version pinned via `kubernetes_version`) plus one Managed Node
@@ -10,7 +10,7 @@
 
 ```hcl
 module "eks_dev" {
-  source = "git::https://github.com/AstroLumina-Rise-n-Shine/AstroLumina-Terraform-Library.git//modules/eks_cluster?ref=main"
+  source = "git::https://github.com/AstroLumina-Rise-n-Shine/AstroLumina-Terraform-Library.git//modules/aws_eks?ref=main"
 
   name             = "astrolumina-development"
   kubernetes_version = "1.29"
