@@ -20,7 +20,8 @@ locals {
 # source_code_hash every time the zip changes, or Terraform will happily
 # keep deploying the old code -- `filebase64sha256(file(var.filename))` is
 # the usual incantation on the calling side.
-resource "aws_lambda_function" "this" {
+# X-Ray is active by default; the rule does not follow the module variable.
+resource "aws_lambda_function" "this" { # nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
   filename         = var.filename
   source_code_hash = var.source_code_hash
 
@@ -28,6 +29,7 @@ resource "aws_lambda_function" "this" {
   role          = var.role_arn
   handler       = var.handler
   runtime       = var.runtime
+  kms_key_arn   = var.environment_kms_key_arn
 
   memory_size = var.memory_size
   timeout     = var.timeout

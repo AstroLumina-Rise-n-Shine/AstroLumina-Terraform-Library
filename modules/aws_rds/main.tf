@@ -2,6 +2,8 @@
 # key conflicts, except Environment, which always comes from var.environment
 # so databases from different envs can never look identical.
 locals {
+  enabled_cloudwatch_logs_exports = var.enabled_cloudwatch_logs_exports == null ? ["postgresql"] : var.enabled_cloudwatch_logs_exports
+
   common_tags = merge(
     {
       Project   = "AstroLumina"
@@ -47,7 +49,8 @@ resource "aws_db_subnet_group" "this" {
 # smallest instance class, 20 GB, final snapshot skipped so teardown is fast
 # and cheap. Encryption at rest is ON by default -- flipping it off saves
 # nothing on a lab stack and losing the habit is expensive.
-resource "aws_db_instance" "this" {
+# CloudWatch exports are configured via the engine-aware module input below.
+resource "aws_db_instance" "this" { # nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
   identifier = var.name
 
   engine         = var.engine
@@ -64,8 +67,9 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = var.security_group_ids
 
-  publicly_accessible = var.publicly_accessible
-  storage_encrypted   = var.storage_encrypted
+  publicly_accessible             = var.publicly_accessible
+  storage_encrypted               = var.storage_encrypted
+  enabled_cloudwatch_logs_exports = local.enabled_cloudwatch_logs_exports
 
   # Performance Insights: query-level history turns "the database is slow"
   # into "this query is slow". The default 7-day retention sits in the free

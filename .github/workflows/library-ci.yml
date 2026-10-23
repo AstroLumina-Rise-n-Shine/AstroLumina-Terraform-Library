@@ -1,18 +1,13 @@
 ---
-name: Terraform Library CI
+name: CI
 
 # All third-party actions are pinned to immutable commit SHAs
 # (instead of floating tags) to protect against supply-chain attacks.
 # The original version tag is kept as a trailing comment for readability.
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "**/*.tf"
-      - ".github/workflows/library-ci.yml"
-      - ".tflint.hcl"
   pull_request:
+    branches: [main]
     paths:
       - "**/*.tf"
       - ".github/workflows/library-ci.yml"
@@ -126,7 +121,7 @@ jobs:
 
       - name: Upload SARIF to code scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@87ef0dc97def48aa960fbf026a2563ee9dbdb470 # v3
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
         with:
           sarif_file: trivy-results.sarif
 
@@ -150,6 +145,25 @@ jobs:
 
       - name: Run Gitleaks
         run: gitleaks detect --source . --verbose --exit-code 1
+
+  semgrep:
+    name: Semgrep OSS
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    container:
+      image: semgrep/semgrep:1.182.0
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - run: semgrep --config p/default --error --jobs 1 --sarif --output=semgrep.sarif || true
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
 
   # NOTE: `terraform plan`/`apply` are intentionally not run in CI — the
   # modules target local KVM/libvirt and the Floci emulator on

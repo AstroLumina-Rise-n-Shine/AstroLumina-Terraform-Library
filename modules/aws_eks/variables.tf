@@ -43,6 +43,24 @@ variable "max_size" {
   default     = 1
 }
 
+variable "enable_cluster_autoscaler" {
+  description = "Provision the AWS side of Cluster Autoscaler IRSA: an OIDC provider, an IAM role trusted by the autoscaler service account, a least-privilege scaling policy, and the discovery tags on the node group. The Helm chart itself is installed outside this module."
+  type        = bool
+  default     = false
+}
+
+variable "cluster_autoscaler_service_account_namespace" {
+  description = "Namespace of the Cluster Autoscaler service account the IRSA role trusts (only used when enable_cluster_autoscaler = true)"
+  type        = string
+  default     = "kube-system"
+}
+
+variable "cluster_autoscaler_service_account_name" {
+  description = "Name of the Cluster Autoscaler service account the IRSA role trusts (only used when enable_cluster_autoscaler = true)"
+  type        = string
+  default     = "cluster-autoscaler"
+}
+
 variable "tags" {
   description = "Tags applied to every created object"
   type        = map(string)

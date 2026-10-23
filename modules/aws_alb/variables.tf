@@ -24,6 +24,17 @@ variable "internal" {
   default     = true
 }
 
+variable "access_logs_bucket" {
+  description = "Existing S3 bucket in the ALB's region configured to accept ELB access logs"
+  type        = string
+}
+
+variable "access_logs_prefix" {
+  description = "Optional prefix for ALB access logs in the destination bucket"
+  type        = string
+  default     = null
+}
+
 variable "listener_port" {
   description = "Port the ALB listener accepts traffic on (443 for HTTPS, 80 for plain HTTP)"
   type        = number
@@ -45,12 +56,6 @@ variable "certificate_arn" {
   description = "ACM (or imported) certificate ARN used by the HTTPS listener; required when listener_protocol = HTTPS"
   type        = string
   default     = null
-}
-
-variable "ssl_policy" {
-  description = "TLS policy for the HTTPS listener"
-  type        = string
-  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 }
 
 variable "target_port" {

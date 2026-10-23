@@ -1,0 +1,153 @@
+# Standard tags for every object this module creates. Caller tags win on
+# key conflicts, except Environment, which always comes from var.environment
+# so caches from different envs can never look identical.
+locals {
+  common_tags = merge(
+    {
+      Project   = "AstroLumina"
+      ManagedBy = "terraform"
+    },
+    var.tags,
+    {
+      Environment = var.environment
+    }
+  )
+
+  # Effective security groups: caller-supplied ones stay attached, and the
+  # module-created group (when enabled) is added on top instead of silently
+  # replacing the caller's list.
+  created_security_group_id = var.create_security_group ? aws_security_group.this[0].id : null
+  security_group_ids = concat(
+    var.security_group_ids,
+    var.create_security_group ? [aws_security_group.this[0].id] : []
+  )
+}
+
+# ElastiCache learns where inside the VPC it may place nodes from a subnet
+# group, not from a single subnet. Hand it the caller's subnets (ideally at
+# least two, in different AZs) so a future replica or failover has somewhere
+# to live.
+resource "aws_elasticache_subnet_group" "this" {
+  name       = "${var.name}-subnets"
+  subnet_ids = var.subnet_ids
+
+  tags = local.common_tags
+}
+
+# Dedicated security group for the cache, created on by default so a caller
+# who forgets networking still gets a private, closed group. It has NO
+# ingress rules unless the caller explicitly lists CIDRs or peer security
+# groups -- Redis is a database port and must never be reachable from the
+# internet by accident.
+resource "aws_security_group" "this" {
+  count = var.create_security_group ? 1 : 0
+
+  name        = "${var.name}-redis"
+  description = "AstroLumina Redis cache ${var.name}"
+  vpc_id      = var.vpc_id
+
+  dynamic "ingress" {
+    for_each = toset(var.allowed_cidr_blocks)
+
+    content {
+      description = "Redis from ${ingress.value}"
+      from_port   = var.port
+      to_port     = var.port
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = toset(var.allowed_security_group_ids)
+
+    content {
+      description     = "Redis from peer security group ${ingress.value}"
+      from_port       = var.port
+      to_port         = var.port
+      protocol        = "tcp"
+      security_groups = [ingress.value]
+    }
+  }
+
+  # No egress rules on purpose: the cache answers connections, it never
+  # dials out, so outbound traffic is denied instead of allowed to 0.0.0.0/0.
+
+  tags = merge(local.common_tags, { Name = "${var.name}-redis" })
+
+  lifecycle {
+    precondition {
+      condition     = var.vpc_id != null
+      error_message = "vpc_id is required when create_security_group = true (the module creates the security group in that VPC)."
+    }
+  }
+}
+
+# Optional parameter family pin. Creating an (empty) parameter group forces
+# the family to match engine_version; without it AWS picks the default group
+# for whatever engine version the account currently resolves.
+resource "aws_elasticache_parameter_group" "this" {
+  count = var.create_parameter_group ? 1 : 0
+
+  name        = "${var.name}-${var.parameter_group_family}"
+  family      = var.parameter_group_family
+  description = "AstroLumina Redis parameters for ${var.name}"
+
+  tags = local.common_tags
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# The cache itself as a single-node replication group (not a bare cache
+# cluster): the replication-group API is the current one, it exposes the
+# primary/reader endpoints, and it can grow into a real replica set later
+# without changing the resource type. One node, no failover, no cluster
+# mode -- the cheap, learning-friendly shape.
+resource "aws_elasticache_replication_group" "this" {
+  replication_group_id = var.name
+  description          = "AstroLumina Redis cache for ${var.name}"
+
+  engine         = "redis"
+  engine_version = var.engine_version
+
+  node_type          = var.node_type
+  port               = var.port
+  num_cache_clusters = 1
+
+  # Single node: automatic failover and Multi-AZ both require at least two
+  # nodes, so they stay off. Add clusters and enable them together when the
+  # cache stops being a lab.
+  automatic_failover_enabled = false
+  multi_az_enabled           = false
+
+  parameter_group_name = var.create_parameter_group ? aws_elasticache_parameter_group.this[0].name : null
+  subnet_group_name    = aws_elasticache_subnet_group.this.name
+
+  security_group_ids = local.security_group_ids
+
+  # Encryption is ON by default: at rest (with the AWS-managed key unless a
+  # caller brings kms_key_id) and in transit (TLS). Turning either off is a
+  # conscious decision, not an accident.
+  at_rest_encryption_enabled = var.at_rest_encryption_enabled
+  kms_key_id                 = var.at_rest_encryption_enabled ? var.kms_key_id : null
+  transit_encryption_enabled = var.transit_encryption_enabled
+
+  # AUTH is only legal with in-transit encryption and is never generated by
+  # the module: a committed or defaulted secret is worse than no AUTH.
+  auth_token = var.transit_encryption_enabled ? var.auth_token : null
+
+  # Daily snapshots: 1 day by default (Trivy AWS-0175 wants backups on),
+  # short retention keeps lab costs down. 0 disables backups.
+  snapshot_retention_limit = var.snapshot_retention_limit
+
+  tags = local.common_tags
+
+  lifecycle {
+    precondition {
+      condition     = var.auth_token == null || var.transit_encryption_enabled
+      error_message = "auth_token requires transit_encryption_enabled = true (AWS rejects AUTH without TLS)."
+    }
+  }
+}

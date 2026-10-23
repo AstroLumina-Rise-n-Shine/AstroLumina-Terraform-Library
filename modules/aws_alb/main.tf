@@ -32,6 +32,12 @@ resource "aws_lb" "this" {
 
   enable_deletion_protection = false
 
+  access_logs {
+    enabled = true
+    bucket  = var.access_logs_bucket
+    prefix  = var.access_logs_prefix
+  }
+
   tags = local.common_tags
 }
 
@@ -62,7 +68,7 @@ resource "aws_lb_listener" "this" {
   # Certificates belong on TLS listeners only; sending one with plain
   # HTTP is an API error, so null both out for HTTP.
   certificate_arn = var.listener_protocol == "HTTPS" ? var.certificate_arn : null
-  ssl_policy      = var.listener_protocol == "HTTPS" ? var.ssl_policy : null
+  ssl_policy      = var.listener_protocol == "HTTPS" ? "ELBSecurityPolicy-TLS13-1-2-Res-2021-06" : null
 
   default_action {
     type             = "forward"
