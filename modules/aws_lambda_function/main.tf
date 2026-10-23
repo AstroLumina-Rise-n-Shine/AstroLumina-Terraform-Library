@@ -41,9 +41,8 @@ resource "aws_lambda_function" "this" {
   # X-Ray tracing on by default: a serverless function without traces is a
   # black box the first time it misbehaves (Trivy AWS-0066). Set the mode
   # to PassThrough when there is no tracing backend to send segments to.
-  # nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
   tracing_config {
-    mode = var.tracing_mode
+    mode = var.tracing_mode # nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
   }
 
   # Environment variables: the config surface between the function and the
