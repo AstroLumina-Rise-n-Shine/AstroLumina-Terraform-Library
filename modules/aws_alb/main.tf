@@ -68,9 +68,7 @@ resource "aws_lb_listener" "this" {
   # Certificates belong on TLS listeners only; sending one with plain
   # HTTP is an API error, so null both out for HTTP.
   certificate_arn = var.listener_protocol == "HTTPS" ? var.certificate_arn : null
-  # nosemgrep: terraform.aws.security.insecure-load-balancer-tls-version.insecure-load-balancer-tls-version
-  # The variable is validated to TLS 1.2+ and defaults to a TLS 1.3/1.2 policy.
-  ssl_policy = var.listener_protocol == "HTTPS" ? var.ssl_policy : null
+  ssl_policy      = var.listener_protocol == "HTTPS" ? "ELBSecurityPolicy-TLS13-1-2-Res-2021-06" : null
 
   default_action {
     type             = "forward"

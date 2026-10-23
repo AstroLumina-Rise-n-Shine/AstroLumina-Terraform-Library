@@ -38,7 +38,8 @@ module "alb_lab" {
 - Access logs are enabled. `access_logs_bucket` must name an existing S3
   bucket in the ALB's region with a bucket policy that permits ELB log
   delivery.
-- HTTPS/TLS is the default on port 443 and uses a TLS 1.2+ security policy.
+- HTTPS/TLS is the default on port 443 and uses the fixed
+  `ELBSecurityPolicy-TLS13-1-2-Res-2021-06` policy.
   Supply `certificate_arn`; labs without a certificate can explicitly set
   `listener_protocol = "HTTP"` and `listener_port = 80`.
 - On real AWS the ALB `name` must be <= 32 characters and is per-region
@@ -58,7 +59,6 @@ module "alb_lab" {
 | `listener_port`      | number       | `443`   | Port the ALB listener accepts traffic on |
 | `listener_protocol`  | string       | `"HTTPS"` | Listener protocol; use `HTTP` only for labs without a certificate |
 | `certificate_arn`    | string       | `null`  | ACM/imported certificate ARN required for HTTPS |
-| `ssl_policy`         | string       | TLS 1.3/1.2 policy | TLS policy for HTTPS; validation rejects policies older than TLS 1.2 |
 | `target_port`        | number       | `80`    | Port targets receive traffic on |
 | `target_protocol`    | string       | `"HTTP"`| Protocol used to talk to targets (e.g. HTTP, TCP) |
 | `target_type`        | string       | `"ip"`  | Kind of target: instance, ip or lambda (validated) |

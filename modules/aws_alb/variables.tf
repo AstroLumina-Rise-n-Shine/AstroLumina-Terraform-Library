@@ -58,17 +58,6 @@ variable "certificate_arn" {
   default     = null
 }
 
-variable "ssl_policy" {
-  description = "TLS 1.2+ policy for the HTTPS listener"
-  type        = string
-  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-
-  validation {
-    condition     = can(regex("TLS13|TLS-1-2", var.ssl_policy))
-    error_message = "ssl_policy must support TLS 1.2 or newer."
-  }
-}
-
 variable "target_port" {
   description = "Port targets receive traffic on"
   type        = number

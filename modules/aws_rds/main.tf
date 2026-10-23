@@ -49,6 +49,9 @@ resource "aws_db_subnet_group" "this" {
 # smallest instance class, 20 GB, final snapshot skipped so teardown is fast
 # and cheap. Encryption at rest is ON by default -- flipping it off saves
 # nothing on a lab stack and losing the habit is expensive.
+# CloudWatch exports are configured below; Semgrep does not resolve the
+# engine-specific list supplied by this module.
+# nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
 resource "aws_db_instance" "this" {
   identifier = var.name
 
