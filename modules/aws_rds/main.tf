@@ -50,8 +50,7 @@ resource "aws_db_subnet_group" "this" {
 # and cheap. Encryption at rest is ON by default -- flipping it off saves
 # nothing on a lab stack and losing the habit is expensive.
 # CloudWatch exports are configured via the engine-aware module input below.
-# nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
-resource "aws_db_instance" "this" {
+resource "aws_db_instance" "this" { # nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
   identifier = var.name
 
   engine         = var.engine
