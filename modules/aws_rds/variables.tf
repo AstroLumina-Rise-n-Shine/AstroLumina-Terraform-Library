@@ -74,6 +74,17 @@ variable "storage_encrypted" {
   default     = true
 }
 
+variable "enabled_cloudwatch_logs_exports" {
+  description = "Database engine logs exported to CloudWatch. PostgreSQL defaults to postgresql; set engine-compatible log types for other engines."
+  type        = list(string)
+  default     = null
+
+  validation {
+    condition     = var.engine == "postgres" || var.enabled_cloudwatch_logs_exports != null
+    error_message = "Set enabled_cloudwatch_logs_exports to log types supported by the selected non-PostgreSQL engine."
+  }
+}
+
 variable "performance_insights_enabled" {
   description = "Enable Performance Insights (query-level monitoring; the default 7-day retention is in the free tier)"
   type        = bool

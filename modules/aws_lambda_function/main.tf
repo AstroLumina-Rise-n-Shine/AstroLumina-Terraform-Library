@@ -28,6 +28,7 @@ resource "aws_lambda_function" "this" {
   role          = var.role_arn
   handler       = var.handler
   runtime       = var.runtime
+  kms_key_arn   = var.environment_kms_key_arn
 
   memory_size = var.memory_size
   timeout     = var.timeout
