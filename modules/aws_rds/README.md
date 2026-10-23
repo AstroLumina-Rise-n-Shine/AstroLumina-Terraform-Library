@@ -33,6 +33,9 @@ module "rds_lab" {
   down; in production switch to a secrets manager instead.
 - `skip_final_snapshot = true` by default so destroying the lab stack does
   not leave a snapshot behind (cost + blocker on teardown).
+- PostgreSQL logs are exported to CloudWatch by default. Other engines
+  require `enabled_cloudwatch_logs_exports` to be set to their supported
+  log types.
 - Performance Insights is encrypted with a dedicated customer-managed KMS
   key with rotation by default (Trivy AWS-0078). Bring your own key with
   `kms_key_arn`, or set `create_kms_key = false` to keep the AWS-managed
@@ -57,6 +60,7 @@ module "rds_lab" {
 | `security_group_ids`  | list(string) | `[]`          | Security groups controlling who can reach the database port |
 | `publicly_accessible` | bool         | `false`       | Give the instance a public IP (keep false; reach it inside the VPC) |
 | `storage_encrypted`   | bool         | `true`        | Encrypt storage at rest with an AWS-managed key |
+| `enabled_cloudwatch_logs_exports` | list(string) | `null` (PostgreSQL uses `["postgresql"]`) | Engine-compatible database logs exported to CloudWatch; required for non-PostgreSQL engines |
 | `backup_retention_period` | number   | `7`           | Days of automatic backups kept (0 disables) |
 | `iam_database_authentication_enabled` | bool | `true` | Let apps authenticate with short-lived IAM tokens instead of the master password |
 | `deletion_protection` | bool         | `true`        | Block accidental deletion of the instance; lab stacks set `false` so destroy stays one command |

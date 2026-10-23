@@ -26,6 +26,10 @@ module "greet" {
 }
 ```
 
+Lambda encrypts environment variables with an AWS-managed KMS key by
+default. Set `environment_kms_key_arn` to use a customer-managed key; the
+function's execution role must have permission to decrypt with that key.
+
 ## Inputs
 
 | Name                  | Type        | Default        | Description                                                                                                                                                                                         |
@@ -39,6 +43,7 @@ module "greet" {
 | memory_size           | number      | `128`          | Memory allocated to the function, in MB (also scales its CPU share)                                                                                                                                   |
 | timeout               | number      | `3`            | Max seconds a single invocation may run before being killed                                                                                                                                           |
 | environment_variables | map(string) | `{}`           | Key/value map exposed to the function code as environment variables                                                                                                                                   |
+| environment_kms_key_arn | string    | `null`         | Optional customer-managed KMS key ARN for environment variables; null uses the AWS-managed key                                                                                                        |
 | publish               | bool        | `false`        | Whether to create an immutable numbered version on every deploy                                                                                                                                       |
 | tracing_mode          | string      | `Active`       | X-Ray tracing mode: `Active` (default) or `PassThrough`                                                                                                                                              |
 | environment           | string      | -              | Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env. |

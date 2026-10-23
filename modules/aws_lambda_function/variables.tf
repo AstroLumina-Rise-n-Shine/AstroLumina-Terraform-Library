@@ -49,6 +49,12 @@ variable "environment_variables" {
   default     = {}
 }
 
+variable "environment_kms_key_arn" {
+  description = "Optional customer-managed KMS key for Lambda environment variables. Null uses Lambda's AWS-managed encryption key."
+  type        = string
+  default     = null
+}
+
 variable "publish" {
   description = "Whether to create an immutable numbered version on every deploy"
   type        = bool
