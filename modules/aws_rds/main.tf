@@ -49,6 +49,8 @@ resource "aws_db_subnet_group" "this" {
 # smallest instance class, 20 GB, final snapshot skipped so teardown is fast
 # and cheap. Encryption at rest is ON by default -- flipping it off saves
 # nothing on a lab stack and losing the habit is expensive.
+# CloudWatch exports are configured via the engine-aware module input below.
+# nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
 resource "aws_db_instance" "this" {
   identifier = var.name
 
@@ -66,11 +68,9 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = var.security_group_ids
 
-  publicly_accessible = var.publicly_accessible
-  storage_encrypted   = var.storage_encrypted
-  # PostgreSQL defaults to its supported log export; other engines provide
-  # an explicit compatible list through the module input.
-  enabled_cloudwatch_logs_exports = local.enabled_cloudwatch_logs_exports # nosemgrep: terraform.aws.security.aws-db-instance-no-logging.aws-db-instance-no-logging
+  publicly_accessible             = var.publicly_accessible
+  storage_encrypted               = var.storage_encrypted
+  enabled_cloudwatch_logs_exports = local.enabled_cloudwatch_logs_exports
 
   # Performance Insights: query-level history turns "the database is slow"
   # into "this query is slow". The default 7-day retention sits in the free

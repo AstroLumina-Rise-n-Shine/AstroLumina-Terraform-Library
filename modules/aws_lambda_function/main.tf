@@ -20,6 +20,9 @@ locals {
 # source_code_hash every time the zip changes, or Terraform will happily
 # keep deploying the old code -- `filebase64sha256(file(var.filename))` is
 # the usual incantation on the calling side.
+# nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
+# X-Ray is active by default; the rule does not follow the module variable.
+# nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
 resource "aws_lambda_function" "this" {
   filename         = var.filename
   source_code_hash = var.source_code_hash
@@ -42,7 +45,7 @@ resource "aws_lambda_function" "this" {
   # black box the first time it misbehaves (Trivy AWS-0066). Set the mode
   # to PassThrough when there is no tracing backend to send segments to.
   tracing_config {
-    mode = var.tracing_mode # nosemgrep: terraform.aws.security.aws-lambda-x-ray-tracing-not-active.aws-lambda-x-ray-tracing-not-active
+    mode = var.tracing_mode
   }
 
   # Environment variables: the config surface between the function and the
