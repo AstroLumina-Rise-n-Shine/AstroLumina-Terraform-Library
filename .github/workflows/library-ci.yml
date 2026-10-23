@@ -1,18 +1,13 @@
 ---
-name: Terraform Library CI
+name: CI
 
 # All third-party actions are pinned to immutable commit SHAs
 # (instead of floating tags) to protect against supply-chain attacks.
 # The original version tag is kept as a trailing comment for readability.
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - "**/*.tf"
-      - ".github/workflows/library-ci.yml"
-      - ".tflint.hcl"
   pull_request:
+    branches: [main]
     paths:
       - "**/*.tf"
       - ".github/workflows/library-ci.yml"
