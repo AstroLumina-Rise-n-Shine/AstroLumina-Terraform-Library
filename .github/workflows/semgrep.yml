@@ -1,7 +1,5 @@
 name: Semgrep
 on:
-  push:
-    branches: [main, feat/elasticache-redis-eks-autoscaler-irsa]
   pull_request:
 jobs:
   semgrep:
