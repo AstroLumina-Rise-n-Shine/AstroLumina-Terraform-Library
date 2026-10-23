@@ -21,6 +21,7 @@ modules/
   aws_lambda_function/    # Lambda function from a local zip package
   aws_ecs_fargate/        # ECS cluster + Fargate task definition and service
   aws_rds/                # RDS instance in a dedicated DB subnet group
+  aws_elasticache_redis/  # Single-node ElastiCache Redis replication group (private, encrypted)
   aws_iam_role/           # IAM role with managed/inline policies
   aws_iam_user/           # IAM user with policies and optional access key
   aws_cross_account_role/ # Role that trusts another AWS account (cross-account AssumeRole)
