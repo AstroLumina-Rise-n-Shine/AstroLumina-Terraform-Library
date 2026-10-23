@@ -8,10 +8,6 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "**/*.tf"
-      - ".github/workflows/library-ci.yml"
-      - ".tflint.hcl"
   workflow_dispatch:
 
 concurrency:
