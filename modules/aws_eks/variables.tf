@@ -1,7 +1,12 @@
 variable "name" {
   description = "Cluster name (also prefixes the IAM roles and node group)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "kubernetes_version" {
   description = "Kubernetes control-plane version managed by EKS"
@@ -70,4 +75,9 @@ variable "tags" {
 variable "environment" {
   description = "Deployment environment this cluster belongs to (development, staging or production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+

@@ -1,7 +1,12 @@
 variable "name" {
   description = "Replication group identifier (also prefixes the subnet group, parameter group and security group; also the Name tag)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "subnet_ids" {
   description = "At least two subnets (different AZs is ideal) for the cache subnet group, explicit IDs with no data-source lookup"
@@ -66,7 +71,12 @@ variable "port" {
   description = "Port the cache listens on"
   type        = number
   default     = 6379
+  validation {
+    condition     = var.port >= 1 && var.port <= 65535
+    error_message = "port must be between 1 and 65535."
+  }
 }
+
 
 variable "at_rest_encryption_enabled" {
   description = "Encrypt the cache storage at rest (default true; Trivy AWS-0100)"
@@ -118,4 +128,9 @@ variable "tags" {
 variable "environment" {
   description = "Deployment environment this cache belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+

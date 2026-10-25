@@ -1,7 +1,12 @@
 variable "name" {
   description = "VPC name, also prefixes subnet and route-table names"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "cidr_block" {
   description = "CIDR block for the whole VPC -- pick an IP range nothing else in your estate already uses"
@@ -77,7 +82,12 @@ variable "flow_logs_traffic_type" {
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+
 
 variable "tags" {
   description = "Extra tags applied to every created object"
