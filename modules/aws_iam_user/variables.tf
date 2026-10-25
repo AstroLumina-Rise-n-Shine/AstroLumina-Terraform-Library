@@ -1,7 +1,12 @@
 variable "name" {
   description = "IAM user name (globally unique within the account)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "managed_policy_arns" {
   description = "ARNs of AWS-managed or customer-managed policies to attach to the user"
@@ -24,7 +29,12 @@ variable "create_access_key" {
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+
 
 variable "tags" {
   description = "Extra tags applied to every created object"

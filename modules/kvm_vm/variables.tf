@@ -42,7 +42,12 @@ variable "tags" {
 variable "environment" {
   description = "Deployment environment this VM belongs to (development, staging or production). Written into the guest at /etc/astrolumina-environment and merged into the labels output -- libvirt domains have no native tags, so this is how the env stays visible."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+
 
 variable "base_image_path" {
   description = "Path to the base QCOW2 image"

@@ -1,7 +1,12 @@
 variable "name" {
   description = "DB instance identifier (also prefixes the subnet group name; also the Name tag)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "engine" {
   description = "Database engine (e.g. postgres, mysql)"
@@ -49,7 +54,12 @@ variable "port" {
   description = "Port the database listens on (5432 for postgres, 3306 for mysql)"
   type        = number
   default     = 5432
+  validation {
+    condition     = var.port >= 1 && var.port <= 65535
+    error_message = "port must be between 1 and 65535."
+  }
 }
+
 
 variable "subnet_ids" {
   description = "At least two subnets (different AZs is ideal) for the DB subnet group, explicit IDs with no data-source lookup"
@@ -142,4 +152,9 @@ variable "tags" {
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+

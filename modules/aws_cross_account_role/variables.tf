@@ -1,7 +1,12 @@
 variable "name" {
   description = "IAM role name (globally unique within this account; the trusted account assumes this ARN)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "trusted_account_id" {
   description = "12-digit AWS account ID allowed to assume this role (its root principal trusts only its own explicitly-delegated users)"
@@ -35,7 +40,12 @@ variable "max_session_duration" {
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+
 
 variable "tags" {
   description = "Extra tags applied to every created object"

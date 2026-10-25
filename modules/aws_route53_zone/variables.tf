@@ -1,7 +1,12 @@
 variable "name" {
   description = "Domain name of the hosted zone, e.g. lab.astrolumina.ro (record names build on top of it)"
   type        = string
+  validation {
+    condition     = length(var.name) > 0 && length(var.name) <= 128
+    error_message = "name must be a non-empty string (max 128 chars)."
+  }
 }
+
 
 variable "comment" {
   description = "Free-form comment stored on the hosted zone"
@@ -40,7 +45,12 @@ variable "records" {
 variable "environment" {
   description = "Deployment environment this stack belongs to (e.g. lab, development, staging, production). Always stamped as the Environment tag -- no default on purpose: every caller must consciously name its env."
   type        = string
+  validation {
+    condition     = length(var.environment) > 0
+    error_message = "environment must be a non-empty string."
+  }
 }
+
 
 variable "tags" {
   description = "Extra tags applied to every created object"
