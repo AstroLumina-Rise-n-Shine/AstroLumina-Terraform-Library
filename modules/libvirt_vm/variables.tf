@@ -78,9 +78,37 @@ variable "running" {
 }
 
 variable "mac_address" {
-  description = "MAC address for the static IP (must match the DHCP reservation)"
+  description = "Optional fixed MAC for the primary NIC. Supply it only if the underlying network uses MAC-based DHCP reservations (the old behaviour); omit it when using direct static IPs via ipv4_address."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.mac_address == "" ? true : can(regex("^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$", var.mac_address))
+    error_message = "mac_address must be a valid EUI-48 address (xx:xx:xx:xx:xx:xx) or empty."
+  }
+}
+
+variable "ipv4_address" {
+  description = "Static IPv4 address + prefix for the VM's primary interface (e.g. 192.168.122.10/24). When set, cloud-init configures the interface directly, bypassing DHCP reservations entirely — the simpler of the two networking modes."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.ipv4_address == "" ? true : can(cidrhost(var.ipv4_address, 0))
+    error_message = "ipv4_address must be a valid CIDR (e.g. 192.168.122.10/24) or empty."
+  }
+}
+
+variable "ipv4_gateway" {
+  description = "IPv4 gateway for the VM. Required when ipv4_address is set (used in cloud-init network config)."
+  type        = string
+  default     = ""
+}
+
+variable "nameservers" {
+  description = "Comma-separated DNS nameserver IPs pushed into cloud-init network config"
+  type        = string
+  default     = "1.1.1.1,8.8.8.8"
 }
 
 variable "host_share_path" {

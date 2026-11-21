@@ -26,6 +26,22 @@ resource "libvirt_cloudinit_disk" "this" {
 
   user_data = <<-EOF
 #cloud-config
+%{if var.ipv4_address != "" && var.ipv4_gateway != ""}
+network:
+  version: 2
+  ethernets:
+    enp1s0:
+      match:
+        name: "enp1s0"
+      dhcp4: no
+      addresses:
+        - ${var.ipv4_address}
+      routes:
+        - to: default
+          via: ${var.ipv4_gateway}
+      nameservers:
+        addresses: [${join(", ", split(",", var.nameservers))}]
+%{endif}
 users:
   - name: ${var.ssh_username}
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -250,6 +266,10 @@ resource "libvirt_domain" "this" {
         source = {
           network = { network = var.network_name }
         }
+        # Forward a static IP into cloud-init when supplied; otherwise rely
+        # on DHCP (with or without a MAC-based reservation). When both
+        # mac_address and ipv4_address are omitted the guest picks up any
+        # available lease, making the layout flexible across environments.
         mac = var.mac_address != "" ? { address = var.mac_address } : null
       }
     ]
