@@ -1,0 +1,282 @@
+# Proxmox VM Module (qm_vm)
+# Provider: telmate/proxmox v2.9.x (stable)
+# Docs: https://github.com/Telmate/terraform-provider-proxmox/blob/v2.9.14/docs/resources/vm_qemu.md
+#
+# Design notes:
+# * Talks to Proxmox VE API directly — no libvirt/virsh needed.
+# * Two networking modes supported:
+#   - DHCP (default): omit ipv4_address + ipv4_gateway; relies on external DHCP
+#     server on the bridge (vmbr0). No MAC pinning required.
+#   - Static: provide ipv4_address + ipv4_gateway; cloud-init (ipconfig0) configures
+#     the interface directly at first boot, bypassing any lease table.
+# * mac_address is OPTIONAL. When supplied it's passed through; when omitted
+#   Proxmox generates one. This drops the MAC <-> DHCP-reservation coupling.
+# * Cloud-init is native in Proxmox; configured via ipconfig0, sshkeys, ciuser,
+#   cipassword, cicustom on the VM resource. No separate cloud-init disk resource.
+
+terraform {
+  required_providers {
+    proxmox = {
+      source  = "telmate/proxmox"
+      version = ">= 2.9.14"
+    }
+  }
+}
+
+locals {
+  common_labels = merge(var.tags, {
+    Environment = var.environment
+  })
+
+  ssh_pub_key_line = trim(var.ssh_pub_key, " \n\r\t")
+
+  # Build ipconfig0 for Proxmox cloud-init.
+  # Static mode: ip=<addr>/<prefix>,gw=<gateway>
+  # DHCP mode:   ip=dhcp
+  ipconfig0 = var.ipv4_address != "" ? "ip=${var.ipv4_address},gw=${var.ipv4_gateway}" : "ip=dhcp"
+
+  # SSH keys passed to cloud-init (proxmox expects them as a multi-line string)
+  sshkeys = local.ssh_pub_key_line
+
+  # User-data for cloud-init (rendered via templatefile or inline if using cicustom).
+  # We use the built-in cloud-init params (ipconfig0, sshkeys, ciuser, cipassword)
+  # for the common case, and inject full user-data via cicustom if tailscale/dnsmasq
+  # custom config is needed.
+  user_data = <<-EOF
+#cloud-config
+users:
+  - name: ${var.ssh_username}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin, sudo
+    home: /home/${var.ssh_username}
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${local.ssh_pub_key_line}
+%{if var.ssh_password != ""}
+    passwd: "${var.ssh_password}"
+%{endif}
+
+ssh_pwauth: ${var.ssh_password != "" ? "true" : "false"}
+
+write_files:
+  - path: /etc/astrolumina-environment
+    permissions: '0644'
+    content: |
+%{for k, v in local.common_labels}      ${k}=${v}
+%{endfor}
+%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+  - path: /etc/dnsmasq.d/tailnet-base.conf
+    permissions: '0644'
+    content: |
+      interface=tailscale0
+      bind-interfaces
+  - path: /usr/local/sbin/tailnet-dns-apply.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      ZONE="$1"
+      TS_IP=""
+      for _ in $(seq 1 60); do
+        TS_IP=$(tailscale ip -4 2>/dev/null | head -n 1)
+        case "$TS_IP" in 100.*) break ;; *) TS_IP="" ;; esac
+        sleep 5
+      done
+      if [ -z "$TS_IP" ]; then
+        echo "tailnet-dns-apply: no Tailscale IPv4 yet, giving up" >&2
+        exit 1
+      fi
+      echo "address=/$${ZONE}/$${TS_IP}" > /etc/dnsmasq.d/tailnet-zone.conf
+      systemctl enable --now dnsmasq
+      systemctl restart dnsmasq
+%{endif}
+%{if var.tailscale_auth_key != ""}
+  - path: /etc/systemd/system/tailnet-pod-routing.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Steer tailnet-bound traffic to Tailscale table 52 (fix Calico fwmark vs Tailscale policy routing)
+      After=network-online.target tailscaled.service
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'ip rule show | grep -q "to 100.64.0.0/10 lookup 52" || ip rule add to 100.64.0.0/10 lookup 52 pref 5200; ip -6 rule show | grep -q "fd7a:115c:a1e0::/48 lookup 52" || ip -6 rule add to fd7a:115c:a1e0::/48 lookup 52 pref 5200'
+
+      [Install]
+      WantedBy=multi-user.target
+%{endif}
+
+runcmd:
+  - echo '${var.ssh_username}:${var.ssh_password}' | chpasswd
+  - systemctl enable ssh
+  - systemctl start ssh
+  - apt update && apt upgrade -y
+%{if var.tailscale_auth_key != ""}
+  - curl -fsSL https://tailscale.com/install.sh | sh
+  - tailscale up --authkey='${var.tailscale_auth_key}' --hostname=${var.vm_name} --accept-dns
+  - systemctl enable --now tailnet-pod-routing.service
+%{endif}
+%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+  - /usr/local/sbin/tailnet-dns-apply.sh ${var.tailnet_dns_zone}
+%{endif}
+EOF
+
+  # Write user-data to a local file
+}
+
+# Write cloud-init user-data to a local file
+resource "local_file" "cloud_init_user_data" {
+  content  = local.user_data
+  filename = "${path.module}/.user_data_${var.vm_name}.yml"
+}
+
+# ============================================================
+# VM definition (proxmox_vm_qemu)
+# ============================================================
+resource "proxmox_vm_qemu" "this" {
+  name        = var.vm_name
+  target_node = var.pm_node
+  vmid        = 0  # auto-assign
+
+  desc = <<-EOF
+AstroLumina RKE2 ${var.environment} node — generated by modules/qm_vm
+Environment : ${var.environment}
+Tags        : ${join(", ", [for k, v in local.common_labels : "${k}=${v}"])}
+EOF
+
+  # Compute / memory
+  cores   = var.vcpu
+  sockets = 1
+  cpu     = "host"
+  memory  = var.memory_mb
+
+  # Disks — clone from a cloud-init ready template
+  clone      = var.pm_template
+  full_clone = true
+  disk_gb    = var.disk_gb
+  scsihw     = "virtio-scsi-single"
+  bootdisk   = "scsi0"
+
+  # Cloud-init configuration (built-in)
+  os_type   = "cloud-init"
+  ipconfig0 = local.ipconfig0
+  sshkeys   = local.sshkeys
+  ciuser    = var.ssh_username
+  cipassword = var.ssh_password != "" ? var.ssh_password : null
+
+  # Custom user-data via cicustom (uploaded to snippets)
+  # This is optional — only used when we need the full user-data (tailscale, dnsmasq, etc.)
+  cicustom = (var.tailscale_auth_key != "" || var.tailnet_dns_zone != "") ? "user=local:snippets/user_data_${var.vm_name}.yml" : null
+
+  # Where to store the generated cloud-init ISO
+  cloudinit_cdrom_storage = var.pm_storage
+
+  # Network
+  network {
+    model     = "virtio"
+    bridge    = var.pm_network_bridge
+    macaddr   = var.mac_address != "" ? var.mac_address : null
+    firewall  = false
+    link_down = false
+  }
+
+  # Boot order
+  boot = "order=scsi0;ide2"
+
+  # Start immediately
+  onboot = var.running
+
+  # Timeouts
+  timeouts {
+    create = "30m"
+    update = "10m"
+    delete = "10m"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      tags,
+    ]
+  }
+}
+
+# ============================================================
+# Upload user-data to Proxmox snippets storage
+# ============================================================
+# This requires SSH access to the Proxmox node to copy the file to /var/lib/vz/snippets/
+# The null_resource uses a file provisioner over SSH.
+resource "null_resource" "upload_user_data" {
+  # Only upload when we have custom user-data (tailscale/dnsmasq)
+  count = (var.tailscale_auth_key != "" || var.tailnet_dns_zone != "") ? 1 : 0
+
+  connection {
+    type        = "ssh"
+    host        = replace(replace(var.pm_api_url, "https://", ""), ":8006/", "")
+    user        = var.pm_ssh_user
+    password    = var.pm_password
+    # Alternatively use SSH key if configured
+  }
+
+  provisioner "file" {
+    source      = local_file.cloud_init_user_data.filename
+    destination = "/var/lib/vz/snippets/user_data_${var.vm_name}.yml"
+  }
+
+  depends_on = [local_file.cloud_init_user_data]
+}
+
+locals {
+  # Prefer explicit static IP when provided; otherwise show "pending" since
+  # the data source proxmox_vm_qemu is not available in telmate/proxmox v2.9.
+  # The actual IP can be obtained from Proxmox API/guest agent after boot.
+  resolved_ip = var.ipv4_address != "" ? split("/", var.ipv4_address)[0] : "pending"
+}
+
+# ============================================================
+# Outputs
+# ============================================================
+output "vm_id" {
+  description = "Proxmox VM ID"
+  value       = proxmox_vm_qemu.this.id
+}
+
+output "vm_name" {
+  description = "VM name"
+  value       = var.vm_name
+}
+
+output "ip_address" {
+  description = "Primary IPv4 address of the VM"
+  value       = local.resolved_ip
+}
+
+output "vcpu" {
+  description = "Number of CPUs"
+  value       = var.vcpu
+}
+
+output "memory_mb" {
+  description = "Memory in MB"
+  value       = var.memory_mb
+}
+
+output "disk_gb" {
+  description = "Disk size in GB"
+  value       = var.disk_gb
+}
+
+output "environment" {
+  description = "Deployment environment this VM belongs to"
+  value       = var.environment
+}
+
+output "labels" {
+  description = "Effective env/role/cluster labels (caller tags merged with Environment)"
+  value       = local.common_labels
+}
+
+output "mac_address" {
+  description = "Effective MAC address (auto-generated when not supplied)"
+  value       = proxmox_vm_qemu.this.network[0].macaddr
+}
