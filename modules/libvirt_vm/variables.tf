@@ -89,13 +89,13 @@ variable "mac_address" {
 }
 
 variable "ipv4_address" {
-  description = "Static IPv4 address + prefix for the VM's primary interface (e.g. 192.168.122.10/24). When set, cloud-init configures the interface directly, bypassing DHCP reservations entirely — the simpler of the two networking modes."
+  description = "Static IPv4 address + prefix for the VM's primary interface (e.g. 192.168.200.210/24). When set, cloud-init configures the interface directly, bypassing DHCP reservations entirely — the simpler of the two networking modes."
   type        = string
   default     = ""
 
   validation {
     condition     = var.ipv4_address == "" ? true : can(cidrhost(var.ipv4_address, 0))
-    error_message = "ipv4_address must be a valid CIDR (e.g. 192.168.122.10/24) or empty."
+    error_message = "ipv4_address must be a valid CIDR (e.g. 192.168.200.210/24) or empty."
   }
 }
 
