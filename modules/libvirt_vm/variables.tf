@@ -136,7 +136,7 @@ variable "tailscale_auth_key" {
   sensitive   = true
 }
 
-variable "tailnet_dns_zone" {
+variable "tailscale_dns_zone" {
   description = "DNS zone served by dnsmasq on this VM, answered with the node's own Tailscale IP (empty string disables the split-DNS server; requires tailscale_auth_key)"
   type        = string
   default     = ""

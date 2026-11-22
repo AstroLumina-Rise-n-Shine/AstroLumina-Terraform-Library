@@ -71,7 +71,7 @@ packages:
   - net-tools
   - jq
   - ca-certificates
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.tailscale_dns_zone != ""}
   - dnsmasq
 %{endif}
 
@@ -84,7 +84,7 @@ write_files:
     permissions: '0644'
     content: |
       ${join("\n      ", [for k, v in local.common_labels : "${k}=${v}"])}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.tailscale_dns_zone != ""}
 # Split-DNS helper: serves <zone> -> this node's own Tailscale IP.
 # The IP is resolved at first boot (after 'tailscale up'), so VM rebuilds
 # that get a new tailnet IP keep working with no manual DNS edits.
@@ -150,9 +150,9 @@ runcmd:
    # Steer tailnet-bound pod replies to table 52 (Calico fwmark fix above)
    - systemctl enable --now tailnet-pod-routing.service
 %{endif}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.tailscale_dns_zone != ""}
    # Point the split-DNS zone at this node's current Tailscale IP
-   - /usr/local/sbin/tailnet-dns-apply.sh ${var.tailnet_dns_zone}
+   - /usr/local/sbin/tailnet-dns-apply.sh ${var.tailscale_dns_zone}
 %{endif}
 EOF
 

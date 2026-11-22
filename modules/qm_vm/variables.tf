@@ -46,7 +46,7 @@ variable "ssh_password" {
 variable "running" {
   description = "Whether the VM starts automatically after creation"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "environment" {
@@ -79,7 +79,7 @@ variable "pm_node" {
 }
 
 variable "pm_storage" {
-  description = "Proxmox storage pool for disks (default: local)"
+  description = "Proxmox storage pool for disks and cloud-init ISO (default: local)"
   type        = string
   default     = "local"
 }
@@ -91,37 +91,32 @@ variable "pm_network_bridge" {
 }
 
 variable "pm_ssh_user" {
-  description = "SSH user used to reach the Proxmox API node (for cloud-init iso upload when not using a pre-existing template)"
+  description = "SSH user on the Proxmox node (for uploading cloud-init snippet via null_resource)"
   type        = string
   default     = "root"
 }
 
-variable "pm_ssh_host" {
-  description = "SSH target to upload the cloud-init ISO to; defaults to pm_api_url host when omitted"
+variable "pm_password" {
+  description = "Password for the Proxmox SSH user (for null_resource file upload). Optional if using SSH keys."
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 # -------------------------------------------------------
 # Base image / clone source
 # -------------------------------------------------------
-variable "base_image_path" {
-  description = "QCOW2 path inside Proxmox storage (e.g. local:base/ubuntu-24.04.qcow2). When empty, a new disk is carved from the cloud-image URL below."
+variable "pm_template" {
+  description = "Name of the cloud-init ready VM template to clone (must exist on the Proxmox node)"
   type        = string
-  default     = ""
-}
-
-variable "cloud_image_url" {
-  description = "URL to download a cloud-init-ready image when base_image_path is empty (used during preflight init, not during apply)"
-  type        = string
-  default     = "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+  default     = "ubuntu-24.04-cloudinit-template"
 }
 
 # -------------------------------------------------------
 # Networking – two modes
-#   1. dhcp      – no ip_config; the proxmox DHCP server hands out an address (stable if the host's dhclient has reservations, or purely dynamic otherwise).
-#   2. static    – caller supplies ipv4_address / ipv4_gateway; the guest receives a fixed LAN address directly via cloud-init.
-#   mac_address remains optional for both paths – it is forwarded to Proxmox only when provided.
+#   1. dhcp      – no ip_config; Proxmox cloud-init uses ip=dhcp; the guest relies on external DHCP server on the bridge (vmbr0).
+#   2. static    – caller supplies ipv4_address / ipv4_gateway; ipconfig0 pins the interface at first boot.
+#   mac_address remains optional for both paths – forwarded to Proxmox only when provided.
 # -------------------------------------------------------
 variable "mac_address" {
   description = "Optional fixed MAC for the primary NIC. When provided, Proxmox will honour it; leave blank for auto-generated"
@@ -158,28 +153,6 @@ variable "nameservers" {
 }
 
 # -------------------------------------------------------
-# Optional 9p-style read-only share of a host directory
-# (mounted inside the guest at guest_mountpoint under mount_tag)
-# -------------------------------------------------------
-variable "host_share_path" {
-  description = "Host directory shared read-only into the VM (via an NFS export or rsync step run by tf.sh; Proxmox doesn't have virtio-9p natively)."
-  type        = string
-  default     = ""
-}
-
-variable "guest_mountpoint" {
-  description = "Guest path where the share is mounted"
-  type        = string
-  default     = "/mnt/k8s"
-}
-
-variable "mount_tag" {
-  description = "Logical tag identifying the share (written into /etc/fstab on the guest)"
-  type        = string
-  default     = "k8s_repo"
-}
-
-# -------------------------------------------------------
 # Tailscale (same contract as libvirt_vm)
 # -------------------------------------------------------
 variable "tailscale_auth_key" {
@@ -189,7 +162,7 @@ variable "tailscale_auth_key" {
   sensitive   = true
 }
 
-variable "tailnet_dns_zone" {
+variable "tailscale_dns_zone" {
   description = "DNS zone served by dnsmasq on this VM, answered with the node's own Tailscale IP (empty string disables the split-DNS server; requires tailscale_auth_key)"
   type        = string
   default     = ""
