@@ -266,10 +266,6 @@ resource "libvirt_domain" "this" {
         source = {
           network = { network = var.network_name }
         }
-        # Forward a static IP into cloud-init when supplied; otherwise rely
-        # on DHCP (with or without a MAC-based reservation). When both
-        # mac_address and ipv4_address are omitted the guest picks up any
-        # available lease, making the layout flexible across environments.
         mac = var.mac_address != "" ? { address = var.mac_address } : null
       }
     ]
