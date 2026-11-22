@@ -64,7 +64,7 @@ write_files:
     content: |
 %{for k, v in local.common_labels}      ${k}=${v}
 %{endfor}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.project_dns != ""}
   - path: /etc/dnsmasq.d/tailnet-base.conf
     permissions: '0644'
     content: |
@@ -117,8 +117,8 @@ runcmd:
   - tailscale up --authkey='${var.tailscale_auth_key}' --hostname=${var.vm_name} --accept-dns
   - systemctl enable --now tailnet-pod-routing.service
 %{endif}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
-  - /usr/local/sbin/tailnet-dns-apply.sh ${var.tailnet_dns_zone}
+%{if var.tailscale_auth_key != "" && var.project_dns != ""}
+  - /usr/local/sbin/tailnet-dns-apply.sh ${var.project_dns}
 %{endif}
 EOF
 
@@ -167,7 +167,7 @@ EOF
 
   # Custom user-data via cicustom (uploaded to snippets)
   # This is optional — only used when we need the full user-data (tailscale, dnsmasq, etc.)
-  cicustom = (var.tailscale_auth_key != "" || var.tailnet_dns_zone != "") ? "user=local:snippets/user_data_${var.vm_name}.yml" : null
+  cicustom = (var.tailscale_auth_key != "" || var.project_dns != "") ? "user=local:snippets/user_data_${var.vm_name}.yml" : null
 
   # Where to store the generated cloud-init ISO
   cloudinit_cdrom_storage = var.pm_storage
@@ -208,7 +208,7 @@ EOF
 # The null_resource uses a file provisioner over SSH.
 resource "null_resource" "upload_user_data" {
   # Only upload when we have custom user-data (tailscale/dnsmasq)
-  count = (var.tailscale_auth_key != "" || var.tailnet_dns_zone != "") ? 1 : 0
+  count = (var.tailscale_auth_key != "" || var.project_dns != "") ? 1 : 0
 
   connection {
     type     = "ssh"

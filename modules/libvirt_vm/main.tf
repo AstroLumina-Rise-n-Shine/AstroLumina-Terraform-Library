@@ -26,6 +26,22 @@ resource "libvirt_cloudinit_disk" "this" {
 
   user_data = <<-EOF
 #cloud-config
+%{if var.ipv4_address != "" && var.ipv4_gateway != ""}
+network:
+  version: 2
+  ethernets:
+    enp1s0:
+      match:
+        name: "enp1s0"
+      dhcp4: no
+      addresses:
+        - ${var.ipv4_address}
+      routes:
+        - to: default
+          via: ${var.ipv4_gateway}
+      nameservers:
+        addresses: [${join(", ", split(",", var.nameservers))}]
+%{endif}
 users:
   - name: ${var.ssh_username}
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -55,7 +71,7 @@ packages:
   - net-tools
   - jq
   - ca-certificates
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.project_dns != ""}
   - dnsmasq
 %{endif}
 
@@ -68,7 +84,7 @@ write_files:
     permissions: '0644'
     content: |
       ${join("\n      ", [for k, v in local.common_labels : "${k}=${v}"])}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.project_dns != ""}
 # Split-DNS helper: serves <zone> -> this node's own Tailscale IP.
 # The IP is resolved at first boot (after 'tailscale up'), so VM rebuilds
 # that get a new tailnet IP keep working with no manual DNS edits.
@@ -134,9 +150,9 @@ runcmd:
    # Steer tailnet-bound pod replies to table 52 (Calico fwmark fix above)
    - systemctl enable --now tailnet-pod-routing.service
 %{endif}
-%{if var.tailscale_auth_key != "" && var.tailnet_dns_zone != ""}
+%{if var.tailscale_auth_key != "" && var.project_dns != ""}
    # Point the split-DNS zone at this node's current Tailscale IP
-   - /usr/local/sbin/tailnet-dns-apply.sh ${var.tailnet_dns_zone}
+   - /usr/local/sbin/tailnet-dns-apply.sh ${var.project_dns}
 %{endif}
 EOF
 
